@@ -1,0 +1,43 @@
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@500;600;700&display=swap');
+
+:root {
+  --font-body: 'Manrope', 'Avenir Next', 'Segoe UI', sans-serif;
+  --font-heading: 'Sora', 'Avenir Next', 'Segoe UI', sans-serif;
+  --ink-main: #131d31;
+  --ink-soft: #3d485d;
+  --surface-muted: #eef0f4;
+  --surface-card: #f7f8fb;
+  --border-soft: #dce1e8;
+
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.45;
+  font-weight: 500;
+  color: var(--ink-main);
+  font-synthesis: none;
+  text-rendering: geometricPrecision;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background: var(--surface-muted);
+}
+
+input,
+textarea,
+button {
+  font: inherit;
+}
+
+button {
+  color: inherit;
+}
