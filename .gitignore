@@ -11,5 +11,6 @@ frontend/dist/
 # Env
 .env
 .env.*
+!frontend/.env.example
 .venv/
 __pycache__/

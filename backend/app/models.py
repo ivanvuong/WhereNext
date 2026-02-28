@@ -43,6 +43,9 @@ class AnalyzeRequest(BaseModel):
 class RankedCommunity(BaseModel):
     id: str
     name: str
+    region: Region
+    latitude: float
+    longitude: float
     distance_miles: float
     commute_score: float
     affordability_score: float

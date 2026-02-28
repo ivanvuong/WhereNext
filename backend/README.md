@@ -15,6 +15,19 @@ uvicorn app.main:app --reload --port 8000
 - `GET /health` -> health check
 - `POST /analyze` -> deterministic community ranking
 
+## CORS
+
+Default allowed origins:
+
+- `http://localhost:5173`
+- `http://127.0.0.1:5173`
+
+Override with:
+
+```bash
+export CORS_ORIGINS="http://localhost:5173,http://127.0.0.1:5173"
+```
+
 Example request:
 
 ```json

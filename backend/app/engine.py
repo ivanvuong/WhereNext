@@ -124,6 +124,9 @@ def score(request: AnalyzeRequest) -> tuple[ResolvedAnchor, list[RankedCommunity
             RankedCommunity(
                 id=community.id,
                 name=community.name,
+                region=community.region,
+                latitude=community.latitude,
+                longitude=community.longitude,
                 distance_miles=round(distance_miles, 2),
                 commute_score=round(commute_score, 2),
                 affordability_score=round(affordability_score, 2),

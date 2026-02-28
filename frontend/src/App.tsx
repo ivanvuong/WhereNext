@@ -1,9 +1,12 @@
 import { useMemo, useState, type CSSProperties } from 'react'
 import './App.css'
-import { COMMUNITIES, type Community } from './data/communities'
-
-type HouseholdType = 'single' | 'couple' | 'family' | 'with pets'
-type Region = 'sf' | 'irvine'
+import { COMMUNITIES } from './data/communities'
+import {
+  analyzeCommunities,
+  type HouseholdType,
+  type RankedCommunityApi,
+  type Region,
+} from './api/analyze'
 
 type ResolvedAnchor = {
   label: string
@@ -13,7 +16,12 @@ type ResolvedAnchor = {
 }
 
 type RankedCommunity = {
-  community: Community
+  id: string
+  name: string
+  region: Region
+  latitude: number
+  longitude: number
+  avgRent: number
   distanceMiles: number
   commuteScore: number
   affordabilityScore: number
@@ -21,7 +29,7 @@ type RankedCommunity = {
   overallScore: number
 }
 
-type PreferenceDimension = keyof Community['lifestyle']
+type PreferenceDimension = keyof (typeof COMMUNITIES)[number]['lifestyle']
 
 const HOUSEHOLD_OPTIONS: HouseholdType[] = ['single', 'couple', 'family', 'with pets']
 
@@ -105,7 +113,7 @@ const haversineMiles = (
   return earthRadiusMiles * c
 }
 
-const scoreCommunities = ({
+const scoreCommunitiesLocally = ({
   anchor,
   budget,
   salary,
@@ -143,19 +151,22 @@ const scoreCommunities = ({
       const affordabilityDelta = community.avgRent - effectiveBudget
       const affordabilityScore = clamp(100 - Math.max(affordabilityDelta, 0) / 14, 12, 100)
 
-      const lifestyleBase =
-        dims.reduce((sum, key) => sum + community.lifestyle[key], 0) / dims.length
+      const lifestyleBase = dims.reduce((sum, key) => sum + community.lifestyle[key], 0) / dims.length
       const weightedLifestyle = clamp(
         lifestyleBase * 0.84 + community.lifestyle[householdWeight] * 0.16,
         0,
         100,
       )
 
-      const overallScore =
-        commuteScore * 0.4 + affordabilityScore * 0.3 + weightedLifestyle * 0.3
+      const overallScore = commuteScore * 0.4 + affordabilityScore * 0.3 + weightedLifestyle * 0.3
 
       return {
-        community,
+        id: community.id,
+        name: community.name,
+        region: community.region,
+        latitude: community.latitude,
+        longitude: community.longitude,
+        avgRent: community.avgRent,
         distanceMiles,
         commuteScore,
         affordabilityScore,
@@ -175,6 +186,49 @@ const formatCurrency = (value: number) =>
     currency: 'USD',
     maximumFractionDigits: 0,
   }).format(value)
+
+const toCommunity = (item: RankedCommunityApi): RankedCommunity => ({
+  id: item.id,
+  name: item.name,
+  region: item.region,
+  latitude: item.latitude,
+  longitude: item.longitude,
+  avgRent: item.avg_rent,
+  distanceMiles: item.distance_miles,
+  commuteScore: item.commute_score,
+  affordabilityScore: item.affordability_score,
+  lifestyleScore: item.lifestyle_score,
+  overallScore: item.overall_score,
+})
+
+const buildReason = (item: RankedCommunity): string => {
+  if (item.lifestyleScore > 82) {
+    return 'Strong lifestyle match for your stated preferences'
+  }
+
+  if (item.affordabilityScore > 82) {
+    return 'Good cost fit relative to budget and salary'
+  }
+
+  if (item.commuteScore > 82) {
+    return 'Commute window aligns closely with your target time'
+  }
+
+  return 'Balanced fit across commute, cost, and lifestyle factors'
+}
+
+const buildTradeoff = (item: RankedCommunity): string => {
+  const weakest = Math.min(item.commuteScore, item.affordabilityScore, item.lifestyleScore)
+  if (weakest === item.affordabilityScore) {
+    return 'Tradeoff: rent pressure is higher than your ideal level'
+  }
+
+  if (weakest === item.commuteScore) {
+    return 'Tradeoff: commute may run longer during peak traffic'
+  }
+
+  return 'Tradeoff: fewer high-density amenities than core districts'
+}
 
 const Logo = () => (
   <div className="brand">
@@ -249,27 +303,59 @@ function App() {
   const [lifestyle, setLifestyle] = useState(DEFAULT_PREFS)
   const [results, setResults] = useState<RankedCommunity[]>([])
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [isLoading, setIsLoading] = useState(false)
+  const [hasSearched, setHasSearched] = useState(false)
+  const [notice, setNotice] = useState<string | null>(null)
+  const [activeAnchorLabel, setActiveAnchorLabel] = useState<string | null>(null)
 
   const selected = useMemo(
-    () => results.find((item) => item.community.id === selectedId) ?? results[0] ?? null,
+    () => results.find((item) => item.id === selectedId) ?? results[0] ?? null,
     [results, selectedId],
   )
 
   const anchor = useMemo(() => resolveAnchor(anchorInput), [anchorInput])
 
-  const updateResults = () => {
-    const ranked = scoreCommunities({
-      anchor,
-      budget,
-      salary,
-      commuteLimit: commute,
-      radius,
-      lifestyleInput: lifestyle,
-      household,
-    })
+  const updateResults = async () => {
+    setHasSearched(true)
+    setIsLoading(true)
+    setNotice(null)
 
-    setResults(ranked)
-    setSelectedId(ranked[0]?.community.id ?? null)
+    try {
+      const response = await analyzeCommunities({
+        anchor_input: anchorInput,
+        budget,
+        salary,
+        commute_limit: commute,
+        radius,
+        household,
+        lifestyle_preferences: lifestyle,
+      })
+
+      const ranked = response.communities.map(toCommunity)
+      setResults(ranked)
+      setSelectedId(ranked[0]?.id ?? null)
+      setActiveAnchorLabel(response.anchor_label)
+      if (ranked.length === 0) {
+        setNotice('No communities match the current radius and budget constraints. Try widening filters.')
+      }
+    } catch {
+      const ranked = scoreCommunitiesLocally({
+        anchor,
+        budget,
+        salary,
+        commuteLimit: commute,
+        radius,
+        lifestyleInput: lifestyle,
+        household,
+      })
+
+      setResults(ranked)
+      setSelectedId(ranked[0]?.id ?? null)
+      setActiveAnchorLabel(anchor.label)
+      setNotice('Backend unavailable. Showing local mock scoring results.')
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const showSidebar = () => {
@@ -279,25 +365,27 @@ function App() {
   const topCard = selected
     ? {
         homes: Math.max(8, Math.round(selected.overallScore / 6)),
-        estimate: selected.community.avgRent * 1420,
+        estimate: selected.avgRent * 1420,
         age: `${Math.max(4, Math.round(26 - selected.distanceMiles))}Y`,
       }
     : null
 
   const hasResults = results.length > 0
 
-  const latitudes = results.map((result) => result.community.latitude)
-  const longitudes = results.map((result) => result.community.longitude)
+  const latitudes = results.map((result) => result.latitude)
+  const longitudes = results.map((result) => result.longitude)
   const minLat = Math.min(...latitudes, anchor.latitude) - 0.02
   const maxLat = Math.max(...latitudes, anchor.latitude) + 0.02
   const minLng = Math.min(...longitudes, anchor.longitude) - 0.03
   const maxLng = Math.max(...longitudes, anchor.longitude) + 0.03
 
-  const getMarkerPosition = (community: Community) => {
-    const x = ((community.longitude - minLng) / (maxLng - minLng || 1)) * 100
-    const y = ((maxLat - community.latitude) / (maxLat - minLat || 1)) * 100
+  const getMapPosition = (latitude: number, longitude: number) => {
+    const x = ((longitude - minLng) / (maxLng - minLng || 1)) * 100
+    const y = ((maxLat - latitude) / (maxLat - minLat || 1)) * 100
     return { left: `${clamp(x, 3, 97)}%`, top: `${clamp(y, 3, 97)}%` }
   }
+
+  const anchorPoint = getMapPosition(anchor.latitude, anchor.longitude)
 
   return (
     <main className={`app app--${mode}`}>
@@ -409,8 +497,8 @@ function App() {
               Find Communities
             </button>
           ) : (
-            <button className="cta" type="button" onClick={updateResults}>
-              Update Results
+            <button className="cta" type="button" onClick={updateResults} disabled={isLoading}>
+              {isLoading ? 'Updating...' : 'Update Results'}
             </button>
           )}
         </div>
@@ -418,19 +506,21 @@ function App() {
 
       {mode === 'results' ? (
         <section className="workspace">
+          {notice ? <p className="workspace-notice">{notice}</p> : null}
+
           {!hasResults ? (
             <div className="workspace-empty">
               <div className="spinner-badge" aria-hidden>
                 <div className="spinner" />
               </div>
-              <h2>Map will appear here</h2>
-              <p>Click &quot;Update Results&quot; to continue</p>
-              <button
-                className="ghost-cta"
-                type="button"
-                onClick={updateResults}
-              >
-                View Map Example
+              <h2>{hasSearched ? 'No communities found' : 'Map will appear here'}</h2>
+              <p>
+                {hasSearched
+                  ? 'Adjust commute, radius, or budget and update results again.'
+                  : 'Click "Update Results" to continue'}
+              </p>
+              <button className="ghost-cta" type="button" onClick={updateResults} disabled={isLoading}>
+                {isLoading ? 'Loading...' : 'View Map Example'}
               </button>
             </div>
           ) : (
@@ -448,21 +538,21 @@ function App() {
                 </div>
 
                 <div className="map-canvas" role="img" aria-label="Community recommendation map">
-                  <div className="anchor-pin" style={{ left: '57%', top: '47%' }}>
-                    <span>Anchor</span>
+                  <div className="anchor-pin" style={anchorPoint}>
+                    <span>{activeAnchorLabel ?? anchor.label}</span>
                   </div>
 
                   {results.map((result) => {
-                    const isActive = selected?.community.id === result.community.id
-                    const pos = getMarkerPosition(result.community)
+                    const isActive = selected?.id === result.id
+                    const pos = getMapPosition(result.latitude, result.longitude)
                     return (
                       <button
-                        key={result.community.id}
+                        key={result.id}
                         type="button"
                         className={`map-marker ${isActive ? 'map-marker--active' : ''}`}
                         style={pos}
-                        onClick={() => setSelectedId(result.community.id)}
-                        aria-label={`View ${result.community.name}`}
+                        onClick={() => setSelectedId(result.id)}
+                        aria-label={`View ${result.name}`}
                       >
                         <span />
                       </button>
@@ -488,6 +578,24 @@ function App() {
                 </div>
               </article>
 
+              <section className="recommendation-list">
+                {results.slice(0, 4).map((result) => (
+                  <button
+                    key={result.id}
+                    type="button"
+                    className={`recommendation-item ${selected?.id === result.id ? 'recommendation-item--active' : ''}`}
+                    onClick={() => setSelectedId(result.id)}
+                  >
+                    <div>
+                      <h4>{result.name}</h4>
+                      <p>{buildReason(result)}</p>
+                      <p className="recommendation-tradeoff">{buildTradeoff(result)}</p>
+                    </div>
+                    <strong>{Math.round(result.overallScore)}</strong>
+                  </button>
+                ))}
+              </section>
+
               {selected ? (
                 <section className="detail-grid">
                   <article className="location-card">
@@ -495,7 +603,7 @@ function App() {
                       <div>
                         <h3>Location</h3>
                         <p>
-                          {selected.community.name}, near {anchor.label}
+                          {selected.name}, near {activeAnchorLabel ?? anchor.label}
                         </p>
                         <p className="code-line">HO-1, HO-3, HO-7</p>
                         <div className="score-strip">
@@ -519,7 +627,7 @@ function App() {
                       </div>
                       <div className="stat-box">
                         <span>Temperature</span>
-                        <strong>{selected.community.region === 'sf' ? '61°F' : '79°F'}</strong>
+                        <strong>{selected.region === 'sf' ? '61°F' : '79°F'}</strong>
                       </div>
                     </div>
                   </article>
