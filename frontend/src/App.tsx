@@ -1,4 +1,5 @@
-import { useMemo, useState, type CSSProperties } from 'react'
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
+import { Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import './App.css'
 import { COMMUNITIES } from './data/communities'
 import {
@@ -33,8 +34,8 @@ type PreferenceDimension = keyof (typeof COMMUNITIES)[number]['lifestyle']
 
 const HOUSEHOLD_OPTIONS: HouseholdType[] = ['single', 'couple', 'family', 'with pets']
 
-const DEFAULT_ANCHOR = 'Google SF'
-const DEFAULT_PREFS = 'walkable, food scene, quiet'
+const DEFAULT_ANCHOR = ''
+const DEFAULT_PREFS = ''
 
 const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max)
 
@@ -235,7 +236,7 @@ const Logo = () => (
     <div className="brand__mark" aria-hidden>
       <div className="brand__mark-inner" />
     </div>
-    <span className="brand__name">LandRight</span>
+    <span className="brand__name">WhereNext</span>
   </div>
 )
 
@@ -273,7 +274,7 @@ const MetricSlider = ({
     <div className="metric-slider__header">
       <label htmlFor={id}>
         {label}
-        {optional ? <span className="muted"> (optional)</span> : null}
+        {optional ? <span className="muted"></span> : null}
       </label>
       <strong>
         {suffix === '$' ? formatCurrency(value) : `${value}${suffix ? ` ${suffix}` : ''}`}
@@ -293,7 +294,6 @@ const MetricSlider = ({
 )
 
 function App() {
-  const [mode, setMode] = useState<'survey' | 'results'>('survey')
   const [anchorInput, setAnchorInput] = useState(DEFAULT_ANCHOR)
   const [budget, setBudget] = useState(2500)
   const [salary, setSalary] = useState(80000)
@@ -307,6 +307,10 @@ function App() {
   const [hasSearched, setHasSearched] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
   const [activeAnchorLabel, setActiveAnchorLabel] = useState<string | null>(null)
+  const updateTimer = useRef<number | null>(null)
+  const navigate = useNavigate()
+  const location = useLocation()
+  const isResults = location.pathname === '/results'
 
   const selected = useMemo(
     () => results.find((item) => item.id === selectedId) ?? results[0] ?? null,
@@ -359,8 +363,32 @@ function App() {
   }
 
   const showSidebar = () => {
-    setMode('results')
+    navigate('/results')
   }
+
+  useEffect(() => {
+    if (!isResults) {
+      return
+    }
+
+    if (updateTimer.current) {
+      window.clearTimeout(updateTimer.current)
+    }
+
+    updateTimer.current = window.setTimeout(() => {
+      updateResults()
+    }, 550)
+
+    return () => {
+      if (updateTimer.current) {
+        window.clearTimeout(updateTimer.current)
+      }
+    }
+  }, [isResults, anchorInput, budget, salary, commute, radius, household, lifestyle])
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0 })
+  }, [location.pathname])
 
   const topCard = selected
     ? {
@@ -388,12 +416,12 @@ function App() {
   const anchorPoint = getMapPosition(anchor.latitude, anchor.longitude)
 
   return (
-    <main className={`app app--${mode}`}>
-      <section className={`survey ${mode === 'results' ? 'survey--sidebar' : ''}`}>
+    <main className={`app app--${isResults ? 'results' : 'survey'}`}>
+      <section className={`survey ${isResults ? 'survey--sidebar' : ''}`}>
         <div className="survey__inner">
           <div className="survey__header">
             <Logo />
-            {mode === 'survey' ? (
+            {!isResults ? (
               <>
                 <h1>Find the best place to live based on your life</h1>
                 <p>From job or school to neighborhood recommendations in seconds</p>
@@ -401,11 +429,13 @@ function App() {
             ) : null}
           </div>
 
-          <form className={`survey-form ${mode === 'survey' ? 'survey-form--landing' : ''}`}>
+          <form className={`survey-form ${!isResults ? 'survey-form--landing' : ''}`}>
             <div className="field-group">
               <label htmlFor="anchor">Where will you work or study?</label>
               <div className="search-field">
-                <SearchIcon />
+                <span className="search-field__icon" aria-hidden="true">
+                  <SearchIcon />
+                </span>
                 <input
                   id="anchor"
                   type="text"
@@ -416,7 +446,7 @@ function App() {
               </div>
             </div>
 
-            <div className={`slider-grid ${mode === 'survey' ? 'slider-grid--split' : ''}`}>
+            <div className={`slider-grid ${!isResults ? 'slider-grid--split' : ''}`}>
               <MetricSlider
                 id="budget"
                 label="Monthly Rent Budget"
@@ -442,7 +472,7 @@ function App() {
 
             <MetricSlider
               id="commute"
-              label="Max commute time"
+              label="Max Commute Time"
               value={commute}
               min={5}
               max={90}
@@ -453,7 +483,7 @@ function App() {
 
             <MetricSlider
               id="radius"
-              label="Search radius"
+              label="Search Radius"
               value={radius}
               min={1}
               max={30}
@@ -489,23 +519,23 @@ function App() {
               />
             </div>
           </form>
+
         </div>
 
         <div className="survey__footer">
-          {mode === 'survey' ? (
+          {!isResults && (
             <button className="cta" type="button" onClick={showSidebar}>
               Find Communities
-            </button>
-          ) : (
-            <button className="cta" type="button" onClick={updateResults} disabled={isLoading}>
-              {isLoading ? 'Updating...' : 'Update Results'}
             </button>
           )}
         </div>
       </section>
 
-      {mode === 'results' ? (
-        <section className="workspace">
+      <Routes>
+        <Route
+          path="/results"
+          element={
+            <section className="workspace">
           {notice ? <p className="workspace-notice">{notice}</p> : null}
 
           {!hasResults ? (
@@ -526,17 +556,6 @@ function App() {
           ) : (
             <div className="workspace-results">
               <article className="map-panel">
-                <div className="map-controls">
-                  <div className="map-search">
-                    <SearchIcon />
-                    <span>Search</span>
-                  </div>
-                  <div className="map-pill">Insurance Type</div>
-                  <div className="map-pill">State</div>
-                  <div className="map-pill">City</div>
-                  <div className="map-pill">District</div>
-                </div>
-
                 <div className="map-canvas" role="img" aria-label="Community recommendation map">
                   <div className="anchor-pin" style={anchorPoint}>
                     <span>{activeAnchorLabel ?? anchor.label}</span>
@@ -651,8 +670,10 @@ function App() {
               ) : null}
             </div>
           )}
-        </section>
-      ) : null}
+            </section>
+          }
+        />
+      </Routes>
     </main>
   )
 }
