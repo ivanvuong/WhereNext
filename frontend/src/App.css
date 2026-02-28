@@ -442,6 +442,7 @@ textarea::placeholder {
 .map-canvas {
   height: min(50vh, 470px);
   position: relative;
+  overflow: hidden;
   background:
     linear-gradient(rgba(255, 255, 255, 0.68), rgba(255, 255, 255, 0.68)),
     repeating-linear-gradient(0deg, transparent, transparent 32px, rgba(174, 181, 193, 0.22) 32px, rgba(174, 181, 193, 0.22) 34px),
@@ -449,6 +450,88 @@ textarea::placeholder {
     radial-gradient(circle at 22% 65%, #bbdfe9 0%, #bbdfe9 10%, transparent 24%),
     radial-gradient(circle at 68% 86%, #c0e4c1 0%, #c0e4c1 8%, transparent 24%),
     #e7ece6;
+}
+
+.mapbox-container {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.mapbox-container .mapboxgl-canvas {
+  outline: none;
+}
+
+.mapbox-container .mapboxgl-ctrl-group {
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.mapbox-anchor {
+  background: #0f1629;
+  color: #fff;
+  border-radius: 999px;
+  padding: 8px 12px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  max-width: 180px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-shadow: 0 10px 18px rgba(11, 22, 49, 0.2);
+}
+
+.mapbox-marker {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 0;
+  background: rgba(253, 186, 36, 0.25);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  position: relative;
+}
+
+.mapbox-marker::after {
+  content: '';
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: #f1ad10;
+}
+
+.mapbox-marker--active {
+  transform: scale(1.2);
+  background: rgba(13, 22, 49, 0.2);
+}
+
+.mapbox-marker--active::after {
+  background: #0d1933;
+}
+
+.mapbox-missing {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  text-align: center;
+  gap: 8px;
+  padding: 24px;
+  color: #2a364f;
+}
+
+.mapbox-missing h3 {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: 1.6rem;
+}
+
+.mapbox-missing p {
+  margin: 0;
+  color: #5b687f;
+  font-size: 1.05rem;
 }
 
 .anchor-pin {

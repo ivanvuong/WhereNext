@@ -1,4 +1,4 @@
-import { useMemo, useState, type CSSProperties } from 'react'
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import './App.css'
 import { COMMUNITIES } from './data/communities'
 import {
@@ -7,6 +7,8 @@ import {
   type RankedCommunityApi,
   type Region,
 } from './api/analyze'
+import mapboxgl from 'mapbox-gl'
+import 'mapbox-gl/dist/mapbox-gl.css'
 
 type ResolvedAnchor = {
   label: string
@@ -293,6 +295,10 @@ const MetricSlider = ({
 )
 
 function App() {
+  const mapContainerRef = useRef<HTMLDivElement | null>(null)
+  const mapRef = useRef<mapboxgl.Map | null>(null)
+  const markerRefs = useRef<mapboxgl.Marker[]>([])
+
   const [mode, setMode] = useState<'survey' | 'results'>('survey')
   const [anchorInput, setAnchorInput] = useState(DEFAULT_ANCHOR)
   const [budget, setBudget] = useState(2500)
@@ -307,6 +313,7 @@ function App() {
   const [hasSearched, setHasSearched] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
   const [activeAnchorLabel, setActiveAnchorLabel] = useState<string | null>(null)
+  const [hasStoredResults, setHasStoredResults] = useState(false)
 
   const selected = useMemo(
     () => results.find((item) => item.id === selectedId) ?? results[0] ?? null,
@@ -314,6 +321,72 @@ function App() {
   )
 
   const anchor = useMemo(() => resolveAnchor(anchorInput), [anchorInput])
+  const mapboxToken = (import.meta.env.VITE_MAPBOX_TOKEN as string | undefined)?.trim()
+
+  useEffect(() => {
+    if (results.length === 0) {
+      return
+    }
+    const payload = {
+      anchorInput,
+      budget,
+      salary,
+      commute,
+      radius,
+      household,
+      lifestyle,
+      results,
+      selectedId,
+      activeAnchorLabel,
+    }
+    window.localStorage.setItem('wherenext:lastResults', JSON.stringify(payload))
+  }, [
+    anchorInput,
+    budget,
+    salary,
+    commute,
+    radius,
+    household,
+    lifestyle,
+    results,
+    selectedId,
+    activeAnchorLabel,
+  ])
+
+  useEffect(() => {
+    const raw = window.localStorage.getItem('wherenext:lastResults')
+    if (!raw) {
+      return
+    }
+    try {
+      const parsed = JSON.parse(raw) as {
+        anchorInput: string
+        budget: number
+        salary: number
+        commute: number
+        radius: number
+        household: HouseholdType
+        lifestyle: string
+        results: RankedCommunity[]
+        selectedId: string | null
+        activeAnchorLabel: string | null
+      }
+      setAnchorInput(parsed.anchorInput)
+      setBudget(parsed.budget)
+      setSalary(parsed.salary)
+      setCommute(parsed.commute)
+      setRadius(parsed.radius)
+      setHousehold(parsed.household)
+      setLifestyle(parsed.lifestyle)
+      setResults(parsed.results)
+      setSelectedId(parsed.selectedId)
+      setActiveAnchorLabel(parsed.activeAnchorLabel)
+      setHasSearched(true)
+      setHasStoredResults(true)
+    } catch {
+      window.localStorage.removeItem('wherenext:lastResults')
+    }
+  }, [])
 
   const updateResults = async () => {
     setHasSearched(true)
@@ -362,6 +435,11 @@ function App() {
     setMode('results')
   }
 
+  const handleFindCommunities = async () => {
+    setMode('results')
+    await updateResults()
+  }
+
   const topCard = selected
     ? {
         homes: Math.max(8, Math.round(selected.overallScore / 6)),
@@ -372,20 +450,76 @@ function App() {
 
   const hasResults = results.length > 0
 
-  const latitudes = results.map((result) => result.latitude)
-  const longitudes = results.map((result) => result.longitude)
-  const minLat = Math.min(...latitudes, anchor.latitude) - 0.02
-  const maxLat = Math.max(...latitudes, anchor.latitude) + 0.02
-  const minLng = Math.min(...longitudes, anchor.longitude) - 0.03
-  const maxLng = Math.max(...longitudes, anchor.longitude) + 0.03
+  useEffect(() => {
+    if (mode !== 'results') {
+      return
+    }
+    if (!mapContainerRef.current) {
+      return
+    }
+    if (!mapboxToken) {
+      return
+    }
 
-  const getMapPosition = (latitude: number, longitude: number) => {
-    const x = ((longitude - minLng) / (maxLng - minLng || 1)) * 100
-    const y = ((maxLat - latitude) / (maxLat - minLat || 1)) * 100
-    return { left: `${clamp(x, 3, 97)}%`, top: `${clamp(y, 3, 97)}%` }
-  }
+    if (!mapRef.current) {
+      mapboxgl.accessToken = mapboxToken
+      mapRef.current = new mapboxgl.Map({
+        container: mapContainerRef.current,
+        style: 'mapbox://styles/mapbox/light-v11',
+        center: [anchor.longitude, anchor.latitude],
+        zoom: 10.5,
+      })
 
-  const anchorPoint = getMapPosition(anchor.latitude, anchor.longitude)
+      mapRef.current.addControl(new mapboxgl.NavigationControl({ showZoom: true }), 'top-right')
+      mapRef.current.on('load', () => {
+        mapRef.current?.resize()
+      })
+    } else {
+      mapRef.current.resize()
+    }
+  }, [anchor.latitude, anchor.longitude, mapboxToken, mode])
+
+  useEffect(() => {
+    if (!mapRef.current || !mapboxToken) {
+      return
+    }
+
+    const map = mapRef.current
+    markerRefs.current.forEach((marker) => marker.remove())
+    markerRefs.current = []
+
+    const bounds = new mapboxgl.LngLatBounds()
+
+    const anchorEl = document.createElement('div')
+    anchorEl.className = 'mapbox-anchor'
+    anchorEl.textContent = activeAnchorLabel ?? anchor.label
+    const anchorMarker = new mapboxgl.Marker({ element: anchorEl, anchor: 'bottom' })
+      .setLngLat([anchor.longitude, anchor.latitude])
+      .addTo(map)
+    markerRefs.current.push(anchorMarker)
+    bounds.extend([anchor.longitude, anchor.latitude])
+
+    results.forEach((result) => {
+      const el = document.createElement('button')
+      el.type = 'button'
+      el.className = `mapbox-marker ${selected?.id === result.id ? 'mapbox-marker--active' : ''}`
+      el.addEventListener('click', () => setSelectedId(result.id))
+
+      const marker = new mapboxgl.Marker({ element: el, anchor: 'center' })
+        .setLngLat([result.longitude, result.latitude])
+        .addTo(map)
+      markerRefs.current.push(marker)
+      bounds.extend([result.longitude, result.latitude])
+    })
+
+    if (results.length > 0) {
+      map.fitBounds(bounds, { padding: 70, duration: 600, maxZoom: 12.5 })
+    } else {
+      map.setCenter([anchor.longitude, anchor.latitude])
+      map.setZoom(10.5)
+    }
+    map.resize()
+  }, [anchor.label, anchor.latitude, anchor.longitude, activeAnchorLabel, mapboxToken, results, selected?.id])
 
   return (
     <main className={`app app--${mode}`}>
@@ -493,8 +627,8 @@ function App() {
 
         <div className="survey__footer">
           {mode === 'survey' ? (
-            <button className="cta" type="button" onClick={showSidebar}>
-              Find Communities
+            <button className="cta" type="button" onClick={handleFindCommunities} disabled={isLoading}>
+              {isLoading ? 'Loading...' : 'Find Communities'}
             </button>
           ) : (
             <button className="cta" type="button" onClick={updateResults} disabled={isLoading}>
@@ -538,26 +672,14 @@ function App() {
                 </div>
 
                 <div className="map-canvas" role="img" aria-label="Community recommendation map">
-                  <div className="anchor-pin" style={anchorPoint}>
-                    <span>{activeAnchorLabel ?? anchor.label}</span>
-                  </div>
-
-                  {results.map((result) => {
-                    const isActive = selected?.id === result.id
-                    const pos = getMapPosition(result.latitude, result.longitude)
-                    return (
-                      <button
-                        key={result.id}
-                        type="button"
-                        className={`map-marker ${isActive ? 'map-marker--active' : ''}`}
-                        style={pos}
-                        onClick={() => setSelectedId(result.id)}
-                        aria-label={`View ${result.name}`}
-                      >
-                        <span />
-                      </button>
-                    )
-                  })}
+                  {!mapboxToken ? (
+                    <div className="mapbox-missing">
+                      <h3>Mapbox token missing</h3>
+                      <p>Add `VITE_MAPBOX_TOKEN` to `WhereNext/frontend/.env` to enable the interactive map.</p>
+                    </div>
+                  ) : (
+                    <div className="mapbox-container" ref={mapContainerRef} />
+                  )}
 
                   {selected && topCard ? (
                     <div className="summary-floats">
