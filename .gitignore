@@ -14,3 +14,4 @@ frontend/dist/
 !frontend/.env.example
 .venv/
 __pycache__/
+.DS_Store
