@@ -73,10 +73,8 @@ export const scoreCommunitiesLocally = ({
       const commuteScore = clamp(100 - commuteGap * 3.2, 0, 100)
 
       const affordabilityDelta = community.avgRent - effectiveBudget
-      if (affordabilityDelta > 0) {
-        return null
-      }
-      const affordabilityScore = clamp(100 - Math.max(affordabilityDelta, 0) / 14, 12, 100)
+      const affordabilityPenalty = affordabilityDelta > 0 ? affordabilityDelta / 30 : 0
+      const affordabilityScore = clamp(100 - affordabilityPenalty, 8, 100)
 
       const lifestyleBase = dims.reduce((sum, key) => sum + community.lifestyle[key], 0) / dims.length
       const weightedLifestyle = clamp(lifestyleBase * 0.84 + community.lifestyle[householdWeight] * 0.16, 0, 100)
@@ -100,7 +98,7 @@ export const scoreCommunitiesLocally = ({
     .filter((community): community is RankedCommunity => community !== null)
     .sort((a, b) => b.overallScore - a.overallScore)
 
-  return candidates.slice(0, 8)
+  return candidates.slice(0, 24)
 }
 
 export const toCommunity = (item: RankedCommunityApi): RankedCommunity => ({

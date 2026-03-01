@@ -17,6 +17,7 @@ const SurveyPanel = ({
   onCommuteChange,
   radius,
   onRadiusChange,
+  radiusSummaryLabel,
   household,
   onHouseholdChange,
   lifestyle,
@@ -36,6 +37,7 @@ const SurveyPanel = ({
   onCommuteChange: (value: number) => void
   radius: number
   onRadiusChange: (value: number) => void
+  radiusSummaryLabel: string | null
   household: HouseholdType
   onHouseholdChange: (value: HouseholdType) => void
   lifestyle: string
@@ -68,6 +70,7 @@ const SurveyPanel = ({
         onCommuteChange={onCommuteChange}
         radius={radius}
         onRadiusChange={onRadiusChange}
+        radiusSummaryLabel={radiusSummaryLabel}
         household={household}
         onHouseholdChange={onHouseholdChange}
         lifestyle={lifestyle}

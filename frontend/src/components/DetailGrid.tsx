@@ -106,6 +106,7 @@ const DetailGrid = ({
                 </p>
                 <p className="property-item__stats">
                   {home.beds ?? '-'} bd · {home.baths ?? '-'} ba · {home.sqft ? `${home.sqft.toLocaleString()} sqft` : 'sqft -'}
+                  {home.estimatedCommuteMinutes !== null ? ` · ~${home.estimatedCommuteMinutes} min` : ''}
                 </p>
               </div>
             </button>

@@ -1,10 +1,27 @@
 import type { Region } from '../api/analyze'
 import type { ResolvedAnchor } from '../types/app'
 
-export const resolveAnchor = (input: string): ResolvedAnchor => {
-  const value = input.toLowerCase()
+const inferRegionFromText = (value: string): Region => {
+  const normalized = value.toLowerCase()
+  if (normalized.includes('uci') || normalized.includes('irvine') || normalized.includes('tustin') || normalized.includes('orange county')) {
+    return 'irvine'
+  }
 
-  if (value.includes('uci') || value.includes('irvine') || value.includes('tustin') || value.includes('orange')) {
+  if (normalized.includes('seattle') || normalized.includes('wa') || normalized.includes('washington')) {
+    return 'seattle'
+  }
+
+  if (normalized.includes('san francisco') || normalized.includes('sf') || normalized.includes('google') || normalized.includes('stripe')) {
+    return 'sf'
+  }
+
+  return 'custom'
+}
+
+export const resolveAnchor = (input: string): ResolvedAnchor => {
+  const value = input.toLowerCase().trim()
+
+  if (inferRegionFromText(value) === 'irvine') {
     return {
       label: 'Irvine Anchor',
       latitude: 33.6405,
@@ -13,7 +30,16 @@ export const resolveAnchor = (input: string): ResolvedAnchor => {
     }
   }
 
-  if (value.includes('san francisco') || value.includes('sf') || value.includes('google') || value.includes('stripe')) {
+  if (inferRegionFromText(value) === 'seattle') {
+    return {
+      label: 'Seattle Anchor',
+      latitude: 47.6062,
+      longitude: -122.3321,
+      region: 'seattle',
+    }
+  }
+
+  if (inferRegionFromText(value) === 'sf') {
     return {
       label: 'San Francisco Anchor',
       latitude: 37.7897,
@@ -53,12 +79,12 @@ export const geocodeAnchor = async (query: string, token: string): Promise<Resol
   }
 
   const [longitude, latitude] = feature.center
-  const region: Region = 'custom'
+  const inferred = inferRegionFromText(`${trimmed} ${feature.place_name ?? ''}`)
   return {
     label: feature.place_name || trimmed,
     latitude,
     longitude,
-    region,
+    region: inferred,
   }
 }
 
@@ -75,3 +101,9 @@ export const haversineMiles = (lat1: number, lon1: number, lat2: number, lon2: n
   const c = 2 * Math.asin(Math.sqrt(a))
   return earthRadiusMiles * c
 }
+
+export const estimateCommuteMinutesFromMiles = (distanceMiles: number): number =>
+  Math.max(1, Math.round(distanceMiles * 3.4 + 5))
+
+export const estimateMilesFromCommuteMinutes = (minutes: number): number =>
+  Math.max(0.15, (minutes - 5) / 3.4)

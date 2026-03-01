@@ -1,4 +1,5 @@
 import type { RankedCommunity } from '../types/app'
+import { estimateCommuteMinutesFromMiles } from '../utils/geo'
 
 const RecommendationList = ({
   results,
@@ -14,7 +15,7 @@ const RecommendationList = ({
   buildTradeoff: (item: RankedCommunity) => string
 }) => (
   <section className="recommendation-list">
-    {results.slice(0, 4).map((result) => (
+    {results.map((result) => (
       <button
         key={result.id}
         type="button"
@@ -23,6 +24,7 @@ const RecommendationList = ({
       >
         <div>
           <h4>{result.name}</h4>
+          <p className="recommendation-commute">~{estimateCommuteMinutesFromMiles(result.distanceMiles)} min from anchor</p>
           <p>{buildReason(result)}</p>
           <p className="recommendation-tradeoff">{buildTradeoff(result)}</p>
         </div>

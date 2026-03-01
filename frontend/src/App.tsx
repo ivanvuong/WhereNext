@@ -3,18 +3,19 @@ import { Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import './App.css'
 import mapboxgl from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
-import { analyzeCommunities, type HouseholdType } from './api/analyze'
+import { type HouseholdType } from './api/analyze'
 import { searchProperties } from './api/properties'
+import { getCommunitiesForRegion } from './data/communities'
 import SurveyPanel from './components/SurveyPanel'
 import ResultsView from './components/ResultsView'
 import type { HousingMode, PropertyListing, RankedCommunity, ResolvedAnchor } from './types/app'
-import { geocodeAnchor, resolveAnchor } from './utils/geo'
 import {
-  buildReason,
-  buildTradeoff,
-  scoreCommunitiesLocally,
-  toCommunity,
-} from './utils/scoring'
+  estimateCommuteMinutesFromMiles,
+  geocodeAnchor,
+  haversineMiles,
+  resolveAnchor,
+} from './utils/geo'
+import { buildReason, buildTradeoff, scoreCommunitiesLocally } from './utils/scoring'
 import { searchNearbyCommunities } from './utils/communitySearch'
 import { toPropertyListing } from './utils/properties'
 
@@ -26,6 +27,7 @@ function App() {
   const mapContainerRef = useRef<HTMLDivElement | null>(null)
   const mapRef = useRef<mapboxgl.Map | null>(null)
   const markerRefs = useRef<mapboxgl.Marker[]>([])
+  const [isMapReady, setIsMapReady] = useState(false)
   const [anchorInput, setAnchorInput] = useState(DEFAULT_ANCHOR)
   const [housingMode, setHousingMode] = useState<HousingMode>('buy')
   const [budget, setBudget] = useState(2500)
@@ -72,6 +74,7 @@ function App() {
   const mapboxToken = runtimeMapboxToken.trim() || envMapboxToken || ''
   const affordabilityInput = housingMode === 'buy' ? maxHomePrice : budget
   const salaryForAnalysis = housingMode === 'buy' ? Math.round(maxHomePrice / 12) : DEFAULT_RENT_SALARY
+  const radiusSummaryLabel = `~${estimateCommuteMinutesFromMiles(radius)} min from anchor at ${radius} miles`
 
   useEffect(() => {
     window.localStorage.removeItem('wherenext:lastResults')
@@ -93,13 +96,41 @@ function App() {
 
       const anchorPayload = anchorOverride ?? resolveAnchor(anchorInput)
 
+      if (anchorPayload.region === 'sf' || anchorPayload.region === 'seattle' || anchorPayload.region === 'irvine') {
+        const ranked = scoreCommunitiesLocally({
+          anchor: anchorPayload,
+          budget,
+          salary: salaryForAnalysis,
+          commuteLimit: commute,
+          radius,
+          lifestyleInput: lifestyle,
+          household,
+          communities: getCommunitiesForRegion(anchorPayload.region),
+        })
+
+        setResults(ranked)
+        setSelectedId(ranked[0]?.id ?? null)
+        setSelectedPropertyId(null)
+        setIsNeighborhoodFocused(false)
+        setProperties([])
+        setPropertyNotice(null)
+        setActiveAnchorLabel(anchorPayload.label)
+        setResolvedAnchor(anchorPayload)
+
+        if (ranked.length === 0) {
+          setNotice('No communities match the current radius and commute constraints. Try expanding filters.')
+        }
+        return
+      }
+
       if (anchorPayload.region === 'custom') {
         if (!mapboxToken) {
-          setNotice('Add a Mapbox token to search cities outside the demo regions.')
+          setNotice('Add a Mapbox token to search cities outside SF/Seattle/Irvine.')
           setResults([])
           setSelectedId(null)
           return
         }
+
         const dynamicCommunities = await searchNearbyCommunities(anchorPayload, radius, mapboxToken)
         const ranked = scoreCommunitiesLocally({
           anchor: anchorPayload,
@@ -111,6 +142,7 @@ function App() {
           household,
           communities: dynamicCommunities,
         })
+
         setResults(ranked)
         setSelectedId(ranked[0]?.id ?? null)
         setSelectedPropertyId(null)
@@ -119,44 +151,18 @@ function App() {
         setPropertyNotice(null)
         setActiveAnchorLabel(anchorPayload.label)
         setResolvedAnchor(anchorPayload)
+
         if (ranked.length === 0) {
           setNotice('No nearby communities found for this location. Try expanding the radius.')
         }
-        return
-      }
-
-      const response = await analyzeCommunities({
-        anchor_input: anchorInput,
-        anchor_label: anchorPayload.label,
-        anchor_latitude: anchorPayload.latitude,
-        anchor_longitude: anchorPayload.longitude,
-        budget,
-        salary: salaryForAnalysis,
-        commute_limit: commute,
-        radius,
-        household,
-        lifestyle_preferences: lifestyle,
-      })
-
-      const ranked = response.communities.map(toCommunity)
-      setResults(ranked)
-      setSelectedId(ranked[0]?.id ?? null)
-      setSelectedPropertyId(null)
-      setIsNeighborhoodFocused(false)
-      setProperties([])
-      setPropertyNotice(null)
-      setActiveAnchorLabel(response.anchor_label)
-      setResolvedAnchor({
-        label: response.anchor_label,
-        latitude: response.anchor_latitude,
-        longitude: response.anchor_longitude,
-        region: response.anchor_region,
-      })
-      if (ranked.length === 0) {
-        setNotice('No communities match the current radius and budget constraints. Try widening filters.')
       }
     } catch {
       const fallbackAnchor = resolvedAnchor ?? resolveAnchor(anchorInput)
+      const fallbackCommunities =
+        fallbackAnchor.region === 'sf' || fallbackAnchor.region === 'seattle' || fallbackAnchor.region === 'irvine'
+          ? getCommunitiesForRegion(fallbackAnchor.region)
+          : undefined
+
       const ranked = scoreCommunitiesLocally({
         anchor: fallbackAnchor,
         budget,
@@ -165,6 +171,7 @@ function App() {
         radius,
         lifestyleInput: lifestyle,
         household,
+        communities: fallbackCommunities,
       })
 
       setResults(ranked)
@@ -174,7 +181,7 @@ function App() {
       setProperties([])
       setPropertyNotice(null)
       setActiveAnchorLabel(fallbackAnchor.label)
-      setNotice('Backend unavailable. Showing local mock scoring results.')
+      setNotice('Network unavailable. Showing local scoring results.')
     } finally {
       setIsLoading(false)
     }
@@ -247,6 +254,9 @@ function App() {
       if (selected.region === 'sf') {
         return { city: 'San Francisco', state_code: 'CA' }
       }
+      if (selected.region === 'seattle') {
+        return { city: 'Seattle', state_code: 'WA' }
+      }
       if (selected.region === 'irvine') {
         return { city: 'Irvine', state_code: 'CA' }
       }
@@ -279,7 +289,20 @@ function App() {
         if (cancelled) {
           return
         }
-        const mapped = response.listings.map(toPropertyListing)
+
+        const mapped = response.listings.map((raw) => {
+          const listing = toPropertyListing(raw)
+          if (listing.latitude === null || listing.longitude === null) {
+            return listing
+          }
+
+          const distanceMiles = haversineMiles(anchor.latitude, anchor.longitude, listing.latitude, listing.longitude)
+          return {
+            ...listing,
+            estimatedCommuteMinutes: estimateCommuteMinutesFromMiles(distanceMiles),
+          }
+        })
+
         setProperties(mapped)
         setSelectedPropertyId((previous) => {
           if (previous && mapped.some((home) => home.id === previous)) {
@@ -328,6 +351,7 @@ function App() {
       if (mapRef.current) {
         mapRef.current.remove()
         mapRef.current = null
+        setIsMapReady(false)
       }
       return
     }
@@ -342,6 +366,7 @@ function App() {
     if (mapRef.current && mapRef.current.getContainer() !== container) {
       mapRef.current.remove()
       mapRef.current = null
+      setIsMapReady(false)
     }
 
     if (!mapRef.current) {
@@ -355,21 +380,24 @@ function App() {
 
       mapRef.current.addControl(new mapboxgl.NavigationControl({ showZoom: true }), 'top-right')
       mapRef.current.on('load', () => {
+        setIsMapReady(true)
         mapRef.current?.resize()
       })
     } else {
       mapRef.current.resize()
     }
+
     return () => {
       if (mapRef.current && mapRef.current.getContainer() !== container) {
         mapRef.current.remove()
         mapRef.current = null
+        setIsMapReady(false)
       }
     }
   }, [anchor.latitude, anchor.longitude, hasResults, isResults, mapboxToken])
 
   useEffect(() => {
-    if (!isResults || !mapRef.current || !mapboxToken) {
+    if (!isResults || !mapRef.current || !mapboxToken || !isMapReady) {
       return
     }
 
@@ -413,10 +441,24 @@ function App() {
       if (home.longitude === null || home.latitude === null) {
         return
       }
+
       const el = document.createElement('button')
       el.type = 'button'
       el.className = `mapbox-home-marker ${selectedPropertyId === home.id ? 'mapbox-home-marker--active' : ''}`
       el.addEventListener('click', () => setSelectedPropertyId(home.id))
+
+      if (selectedPropertyId === home.id && home.primaryPhoto) {
+        const preview = document.createElement('div')
+        preview.className = 'mapbox-home-marker__preview'
+
+        const image = document.createElement('img')
+        image.src = home.primaryPhoto
+        image.alt = home.address
+        image.loading = 'lazy'
+        preview.appendChild(image)
+
+        el.appendChild(preview)
+      }
 
       const marker = new mapboxgl.Marker({ element: el, anchor: 'center' })
         .setLngLat([home.longitude, home.latitude])
@@ -426,9 +468,15 @@ function App() {
     })
 
     if (isNeighborhoodFocused && selected) {
-      if (!homeBounds.isEmpty()) {
+      if (selectedProperty && selectedProperty.latitude !== null && selectedProperty.longitude !== null) {
+        map.flyTo({
+          center: [selectedProperty.longitude, selectedProperty.latitude],
+          zoom: 15.3,
+          speed: 0.85,
+        })
+      } else if (!homeBounds.isEmpty()) {
         homeBounds.extend([selected.longitude, selected.latitude])
-        map.fitBounds(homeBounds, { padding: 90, duration: 700, maxZoom: 15 })
+        map.fitBounds(homeBounds, { padding: 90, duration: 700, maxZoom: 14.2 })
       } else {
         map.flyTo({
           center: [selected.longitude, selected.latitude],
@@ -442,6 +490,7 @@ function App() {
       map.setCenter([anchor.longitude, anchor.latitude])
       map.setZoom(10.5)
     }
+
     map.resize()
   }, [
     activeAnchorLabel,
@@ -449,12 +498,14 @@ function App() {
     anchor.latitude,
     anchor.longitude,
     isResults,
+    isMapReady,
     mapboxToken,
     results,
     selected?.id,
     isNeighborhoodFocused,
     properties,
     selectedPropertyId,
+    selectedProperty,
   ])
 
   return (
@@ -473,6 +524,7 @@ function App() {
         onCommuteChange={setCommute}
         radius={radius}
         onRadiusChange={setRadius}
+        radiusSummaryLabel={radiusSummaryLabel}
         household={household}
         onHouseholdChange={setHousehold}
         lifestyle={lifestyle}

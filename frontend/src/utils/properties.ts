@@ -14,6 +14,7 @@ export const toPropertyListing = (item: PropertyListingApi): PropertyListing => 
   longitude: item.longitude,
   primaryPhoto: item.primary_photo,
   detailUrl: item.detail_url,
+  estimatedCommuteMinutes: null,
 })
 
 export const isRentalListing = (listing: PropertyListing) =>

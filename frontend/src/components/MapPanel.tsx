@@ -56,6 +56,9 @@ const MapPanel = ({
           <p className="map-property-detail__meta">
             {selectedProperty.beds ?? '-'} bd · {selectedProperty.baths ?? '-'} ba · {selectedProperty.sqft ? `${selectedProperty.sqft.toLocaleString()} sqft` : 'sqft -'}
           </p>
+          {selectedProperty.estimatedCommuteMinutes !== null ? (
+            <p className="map-property-detail__meta">Estimated commute: ~{selectedProperty.estimatedCommuteMinutes} min</p>
+          ) : null}
           <p className="map-property-detail__meta">Status: {selectedProperty.status.replaceAll('_', ' ')}</p>
           {selectedProperty.detailUrl ? (
             <a href={selectedProperty.detailUrl} target="_blank" rel="noreferrer" className="property-item__link">

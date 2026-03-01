@@ -41,4 +41,5 @@ export type PropertyListing = {
   longitude: number | null
   primaryPhoto: string | null
   detailUrl: string | null
+  estimatedCommuteMinutes: number | null
 }
