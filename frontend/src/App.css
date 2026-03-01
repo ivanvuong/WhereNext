@@ -813,6 +813,46 @@ textarea::placeholder {
   color: #8893a8;
 }
 
+.neighborhood-summary {
+  margin-top: 10px;
+  border: 1px solid #dde3ed;
+  border-radius: 14px;
+  background: #f8fafc;
+  padding: 10px 12px;
+}
+
+.neighborhood-summary h4 {
+  margin: 0;
+  font-size: 0.95rem;
+  color: #2f3b54;
+}
+
+.neighborhood-summary__title {
+  margin: 8px 0 0;
+  font-size: 0.9rem;
+  color: #4f5e7c;
+  font-weight: 620;
+}
+
+.neighborhood-summary__meta {
+  margin: 8px 0 0;
+  font-size: 0.9rem;
+  color: #5f6f8c;
+}
+
+.neighborhood-summary ul {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 4px;
+}
+
+.neighborhood-summary li {
+  color: #4c5b79;
+  font-size: 0.9rem;
+  line-height: 1.35;
+}
+
 .score-strip {
   margin-top: 10px;
   display: flex;

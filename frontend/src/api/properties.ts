@@ -19,6 +19,7 @@ export type PropertySearchRequestPayload = {
   housing_mode: HousingMode
   max_home_price?: number
   limit?: number
+  lifestyle_preferences?: string
 }
 
 export type PropertyListingApi = {

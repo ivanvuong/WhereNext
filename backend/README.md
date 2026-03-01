@@ -15,6 +15,7 @@ uvicorn app.main:app --reload --port 8000
 - `GET /health` -> health check
 - `POST /analyze` -> deterministic community ranking
 - `POST /properties/search` -> homes for a selected neighborhood (Realty in US via RapidAPI)
+- `POST /neighborhood/summary` -> AI-generated neighborhood overview bullets
 
 ## Environment
 
@@ -22,6 +23,18 @@ Required for property search:
 
 ```bash
 export REALTY_RAPIDAPI_KEY="your_rapidapi_key"
+```
+
+Required for neighborhood AI summary:
+
+```bash
+export MISTRAL_API_KEY="your_mistral_api_key"
+```
+
+Required for lifestyle preference matching (Foursquare POI proximity):
+
+```bash
+export FOURSQUARE_API_KEY="your_foursquare_api_key"
 ```
 
 ## CORS
