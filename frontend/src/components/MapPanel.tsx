@@ -1,6 +1,5 @@
 import type { RefObject } from 'react'
-import type { ResolvedAnchor, RankedCommunity, TopCard } from '../types/app'
-import { formatCurrency } from '../utils/format'
+import type { ResolvedAnchor, RankedCommunity } from '../types/app'
 
 const MapPanel = ({
   mapboxToken,
@@ -9,7 +8,6 @@ const MapPanel = ({
   onSaveMapboxToken,
   mapContainerRef,
   selected,
-  topCard,
   anchorLabel,
   anchor,
 }: {
@@ -19,7 +17,6 @@ const MapPanel = ({
   onSaveMapboxToken: () => void
   mapContainerRef: RefObject<HTMLDivElement>
   selected: RankedCommunity | null
-  topCard: TopCard | null
   anchorLabel: string | null
   anchor: ResolvedAnchor
 }) => (
@@ -45,23 +42,6 @@ const MapPanel = ({
       ) : (
         <div className="mapbox-container" ref={mapContainerRef} />
       )}
-
-      {selected && topCard ? (
-        <div className="summary-floats">
-          <div>
-            <strong>{topCard.homes}</strong>
-            <span>House Number</span>
-          </div>
-          <div>
-            <strong>{formatCurrency(topCard.estimate)}</strong>
-            <span>Estimate House Price</span>
-          </div>
-          <div>
-            <strong>{topCard.age}</strong>
-            <span>Average Age</span>
-          </div>
-        </div>
-      ) : null}
 
     </div>
   </article>

@@ -14,6 +14,7 @@ import {
   scoreCommunitiesLocally,
   toCommunity,
 } from './utils/scoring'
+import { searchNearbyCommunities } from './utils/communitySearch'
 
 const DEFAULT_ANCHOR = ''
 const DEFAULT_PREFS = ''
@@ -76,6 +77,35 @@ function App() {
       }
 
       const anchorPayload = anchorOverride ?? resolveAnchor(anchorInput)
+
+      if (anchorPayload.region === 'custom') {
+        if (!mapboxToken) {
+          setNotice('Add a Mapbox token to search cities outside the demo regions.')
+          setResults([])
+          setSelectedId(null)
+          return
+        }
+        const dynamicCommunities = await searchNearbyCommunities(anchorPayload, radius, mapboxToken)
+        const ranked = scoreCommunitiesLocally({
+          anchor: anchorPayload,
+          budget,
+          salary,
+          commuteLimit: commute,
+          radius,
+          lifestyleInput: lifestyle,
+          household,
+          communities: dynamicCommunities,
+        })
+        setResults(ranked)
+        setSelectedId(ranked[0]?.id ?? null)
+        setActiveAnchorLabel(anchorPayload.label)
+        setResolvedAnchor(anchorPayload)
+        if (ranked.length === 0) {
+          setNotice('No nearby communities found for this location. Try expanding the radius.')
+        }
+        return
+      }
+
       const response = await analyzeCommunities({
         anchor_input: anchorInput,
         anchor_label: anchorPayload.label,
@@ -173,6 +203,10 @@ function App() {
 
   useEffect(() => {
     if (!isResults) {
+      if (mapRef.current) {
+        mapRef.current.remove()
+        mapRef.current = null
+      }
       return
     }
     if (!mapContainerRef.current) {
@@ -182,10 +216,16 @@ function App() {
       return
     }
 
+    const container = mapContainerRef.current
+    if (mapRef.current && mapRef.current.getContainer() !== container) {
+      mapRef.current.remove()
+      mapRef.current = null
+    }
+
     if (!mapRef.current) {
       mapboxgl.accessToken = mapboxToken
       mapRef.current = new mapboxgl.Map({
-        container: mapContainerRef.current,
+        container,
         style: 'mapbox://styles/mapbox/light-v11',
         center: [anchor.longitude, anchor.latitude],
         zoom: 10.5,
@@ -197,6 +237,12 @@ function App() {
       })
     } else {
       mapRef.current.resize()
+    }
+    return () => {
+      if (mapRef.current && mapRef.current.getContainer() !== container) {
+        mapRef.current.remove()
+        mapRef.current = null
+      }
     }
   }, [anchor.latitude, anchor.longitude, isResults, mapboxToken])
 
