@@ -38,7 +38,10 @@ const SurveyForm = ({
   lifestyle: string
   onLifestyleChange: (value: string) => void
 }) => (
-  <form className={`survey-form ${!isResults ? 'survey-form--landing' : ''}`}>
+  <form
+    className={`survey-form ${!isResults ? 'survey-form--landing' : ''}`}
+    onSubmit={(event) => event.preventDefault()}
+  >
     <div className="field-group">
       <label htmlFor="anchor">Where will you work or study?</label>
       <div className="search-field">

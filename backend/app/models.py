@@ -64,3 +64,31 @@ class AnalyzeResponse(BaseModel):
     anchor_longitude: float
     candidate_count: int
     communities: list[RankedCommunity]
+
+
+class PropertySearchRequest(BaseModel):
+    neighborhood: str = Field(min_length=1)
+    city: str | None = None
+    state_code: str | None = None
+    budget: int = Field(default=2500, ge=600, le=12000)
+    salary: int = Field(default=80000, ge=0, le=2_000_000)
+    household: HouseholdType = "single"
+    limit: int = Field(default=8, ge=1, le=20)
+
+
+class PropertyListing(BaseModel):
+    id: str
+    address: str
+    status: str
+    list_price: int | None = None
+    beds: float | None = None
+    baths: float | None = None
+    sqft: int | None = None
+    primary_photo: str | None = None
+    detail_url: str | None = None
+
+
+class PropertySearchResponse(BaseModel):
+    neighborhood: str
+    total: int
+    listings: list[PropertyListing]

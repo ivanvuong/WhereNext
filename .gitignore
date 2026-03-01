@@ -12,6 +12,7 @@ frontend/dist/
 .env
 .env.*
 !frontend/.env.example
+!backend/.env.example
 .venv/
 __pycache__/
 .DS_Store

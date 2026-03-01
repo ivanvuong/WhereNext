@@ -26,3 +26,15 @@ export type TopCard = {
   estimate: number
   age: string
 }
+
+export type PropertyListing = {
+  id: string
+  address: string
+  status: string
+  listPrice: number | null
+  beds: number | null
+  baths: number | null
+  sqft: number | null
+  primaryPhoto: string | null
+  detailUrl: string | null
+}

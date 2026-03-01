@@ -1,13 +1,19 @@
-import type { RankedCommunity, ResolvedAnchor } from '../types/app'
+import type { PropertyListing, RankedCommunity, ResolvedAnchor } from '../types/app'
 
 const DetailGrid = ({
   selected,
   anchorLabel,
   anchor,
+  properties,
+  isPropertiesLoading,
+  propertyNotice,
 }: {
   selected: RankedCommunity
   anchorLabel: string | null
   anchor: ResolvedAnchor
+  properties: PropertyListing[]
+  isPropertiesLoading: boolean
+  propertyNotice: string | null
 }) => (
   <section className="detail-grid">
     <article className="location-card">
@@ -44,8 +50,43 @@ const DetailGrid = ({
       </div>
     </article>
 
-    <article className="property-card" aria-label="Property preview">
-      <div className="property-card__image" />
+    <article className="property-card" aria-label="Homes in selected neighborhood">
+      <div className="property-card__header">
+        <h3>Homes</h3>
+        <p>Listings that align with your current filters.</p>
+      </div>
+      <div className="property-list">
+        {isPropertiesLoading ? <p className="property-meta">Loading homes...</p> : null}
+        {!isPropertiesLoading && propertyNotice ? <p className="property-meta">{propertyNotice}</p> : null}
+        {!isPropertiesLoading && !propertyNotice && properties.length === 0 ? (
+          <p className="property-meta">No homes available yet.</p>
+        ) : null}
+        {!isPropertiesLoading &&
+          properties.map((home) => (
+            <article key={home.id} className="property-item">
+              {home.primaryPhoto ? (
+                <img className="property-item__image" src={home.primaryPhoto} alt={home.address} loading="lazy" />
+              ) : (
+                <div className="property-item__image property-item__image--fallback" aria-hidden />
+              )}
+              <div className="property-item__body">
+                <h4>{home.address}</h4>
+                <p className="property-item__price">
+                  {home.listPrice ? `$${home.listPrice.toLocaleString()}` : 'Price unavailable'}
+                </p>
+                <p className="property-item__stats">
+                  {home.beds ?? '-'} bd · {home.baths ?? '-'} ba · {home.sqft ? `${home.sqft.toLocaleString()} sqft` : 'sqft -'}
+                </p>
+                <p className="property-item__status">{home.status.replaceAll('_', ' ')}</p>
+                {home.detailUrl ? (
+                  <a href={home.detailUrl} target="_blank" rel="noreferrer" className="property-item__link">
+                    View listing
+                  </a>
+                ) : null}
+              </div>
+            </article>
+          ))}
+      </div>
     </article>
 
     <article className="tenants-card">

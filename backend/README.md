@@ -14,6 +14,15 @@ uvicorn app.main:app --reload --port 8000
 
 - `GET /health` -> health check
 - `POST /analyze` -> deterministic community ranking
+- `POST /properties/search` -> homes for a selected neighborhood (Realty in US via RapidAPI)
+
+## Environment
+
+Required for property search:
+
+```bash
+export REALTY_RAPIDAPI_KEY="your_rapidapi_key"
+```
 
 ## CORS
 
@@ -39,5 +48,19 @@ Example request:
   "radius": 15,
   "household": "single",
   "lifestyle_preferences": "walkable, food scene, quiet"
+}
+```
+
+Property search request example:
+
+```json
+{
+  "neighborhood": "Westpark",
+  "city": "Irvine",
+  "state_code": "CA",
+  "budget": 2500,
+  "salary": 80000,
+  "household": "single",
+  "limit": 6
 }
 ```

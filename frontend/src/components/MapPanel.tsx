@@ -1,5 +1,4 @@
 import type { RefObject } from 'react'
-import type { ResolvedAnchor, RankedCommunity } from '../types/app'
 
 const MapPanel = ({
   mapboxToken,
@@ -7,18 +6,12 @@ const MapPanel = ({
   onMapboxTokenInput,
   onSaveMapboxToken,
   mapContainerRef,
-  selected,
-  anchorLabel,
-  anchor,
 }: {
   mapboxToken: string
   mapboxTokenInput: string
   onMapboxTokenInput: (value: string) => void
   onSaveMapboxToken: () => void
-  mapContainerRef: RefObject<HTMLDivElement>
-  selected: RankedCommunity | null
-  anchorLabel: string | null
-  anchor: ResolvedAnchor
+  mapContainerRef: RefObject<HTMLDivElement | null>
 }) => (
   <article className="map-panel">
     <div className="map-canvas" role="img" aria-label="Community recommendation map">

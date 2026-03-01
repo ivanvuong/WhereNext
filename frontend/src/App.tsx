@@ -4,9 +4,10 @@ import './App.css'
 import mapboxgl from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
 import { analyzeCommunities, type HouseholdType } from './api/analyze'
+import { searchProperties } from './api/properties'
 import SurveyPanel from './components/SurveyPanel'
 import ResultsView from './components/ResultsView'
-import type { RankedCommunity, ResolvedAnchor, TopCard } from './types/app'
+import type { PropertyListing, RankedCommunity, ResolvedAnchor, TopCard } from './types/app'
 import { geocodeAnchor, resolveAnchor } from './utils/geo'
 import {
   buildReason,
@@ -15,6 +16,7 @@ import {
   toCommunity,
 } from './utils/scoring'
 import { searchNearbyCommunities } from './utils/communitySearch'
+import { toPropertyListing } from './utils/properties'
 
 const DEFAULT_ANCHOR = ''
 const DEFAULT_PREFS = ''
@@ -35,7 +37,10 @@ function App() {
   const [isLoading, setIsLoading] = useState(false)
   const [hasSearched, setHasSearched] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
+  const [propertyNotice, setPropertyNotice] = useState<string | null>(null)
   const [activeAnchorLabel, setActiveAnchorLabel] = useState<string | null>(null)
+  const [properties, setProperties] = useState<PropertyListing[]>([])
+  const [isPropertiesLoading, setIsPropertiesLoading] = useState(false)
   const [resolvedAnchor, setResolvedAnchor] = useState<ResolvedAnchor | null>(null)
   const [runtimeMapboxToken, setRuntimeMapboxToken] = useState<string>(() => {
     if (typeof window === 'undefined') {
@@ -98,6 +103,8 @@ function App() {
         })
         setResults(ranked)
         setSelectedId(ranked[0]?.id ?? null)
+        setProperties([])
+        setPropertyNotice(null)
         setActiveAnchorLabel(anchorPayload.label)
         setResolvedAnchor(anchorPayload)
         if (ranked.length === 0) {
@@ -122,6 +129,8 @@ function App() {
       const ranked = response.communities.map(toCommunity)
       setResults(ranked)
       setSelectedId(ranked[0]?.id ?? null)
+      setProperties([])
+      setPropertyNotice(null)
       setActiveAnchorLabel(response.anchor_label)
       setResolvedAnchor({
         label: response.anchor_label,
@@ -146,6 +155,8 @@ function App() {
 
       setResults(ranked)
       setSelectedId(ranked[0]?.id ?? null)
+      setProperties([])
+      setPropertyNotice(null)
       setActiveAnchorLabel(fallbackAnchor.label)
       setNotice('Backend unavailable. Showing local mock scoring results.')
     } finally {
@@ -190,6 +201,62 @@ function App() {
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0 })
   }, [location.pathname])
+
+  useEffect(() => {
+    if (!isResults || !selected) {
+      return
+    }
+
+    const inferCityAndState = (): { city?: string; state_code?: string } => {
+      if (selected.region === 'sf') {
+        return { city: 'San Francisco', state_code: 'CA' }
+      }
+      if (selected.region === 'irvine') {
+        return { city: 'Irvine', state_code: 'CA' }
+      }
+      return {}
+    }
+
+    let cancelled = false
+    const run = async () => {
+      setIsPropertiesLoading(true)
+      setPropertyNotice(null)
+      try {
+        const region = inferCityAndState()
+        const response = await searchProperties({
+          neighborhood: selected.name,
+          city: region.city,
+          state_code: region.state_code,
+          budget,
+          salary,
+          household,
+          limit: 6,
+        })
+        if (cancelled) {
+          return
+        }
+        const mapped = response.listings.map(toPropertyListing)
+        setProperties(mapped)
+        if (mapped.length === 0) {
+          setPropertyNotice('No matching homes found for this neighborhood and filter mix.')
+        }
+      } catch {
+        if (!cancelled) {
+          setProperties([])
+          setPropertyNotice('Could not load homes right now. Check backend API key/config.')
+        }
+      } finally {
+        if (!cancelled) {
+          setIsPropertiesLoading(false)
+        }
+      }
+    }
+
+    run()
+    return () => {
+      cancelled = true
+    }
+  }, [isResults, selected?.id, budget, salary, household])
 
   const topCard: TopCard | null = selected
     ? {
@@ -333,6 +400,9 @@ function App() {
               onSelect={setSelectedId}
               buildReason={buildReason}
               buildTradeoff={buildTradeoff}
+              properties={properties}
+              isPropertiesLoading={isPropertiesLoading}
+              propertyNotice={propertyNotice}
             />
           }
         />
