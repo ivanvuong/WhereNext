@@ -12,10 +12,7 @@ const MapPanel = ({
   mapContainerRef,
   selected,
   selectedOverview,
-  selectedGood,
-  selectedTradeoff,
   housingMode,
-  isSelectedCopyLoading,
   onCloseNeighborhood,
   selectedProperty,
   onClosePropertyDetail,
@@ -27,10 +24,7 @@ const MapPanel = ({
   mapContainerRef: RefObject<HTMLDivElement | null>
   selected: RankedCommunity | null
   selectedOverview: string
-  selectedGood: string
-  selectedTradeoff: string
   housingMode: HousingMode
-  isSelectedCopyLoading: boolean
   onCloseNeighborhood: () => void
   selectedProperty: PropertyListing | null
   onClosePropertyDetail: () => void
@@ -65,31 +59,14 @@ const MapPanel = ({
               X
             </button>
           </div>
-          {isSelectedCopyLoading ? (
-            <div className="copy-skeleton" aria-hidden>
-              <span />
-              <span />
-            </div>
-          ) : (
-            <p>{selectedOverview}</p>
-          )}
+          <p>{selectedOverview}</p>
           <div className="map-neighborhood-overlay__chips">
             <span>Match {Math.round(selected.overallScore)}</span>
             <span>Commute {Math.round(selected.commuteScore)}</span>
             <span>Cost {Math.round(selected.affordabilityScore)}</span>
             <span>Lifestyle {Math.round(selected.lifestyleScore)}</span>
           </div>
-          {isSelectedCopyLoading ? (
-            <div className="copy-skeleton copy-skeleton--meta" aria-hidden>
-              <span />
-              <span />
-            </div>
-          ) : (
-            <>
-              <p className="map-neighborhood-overlay__meta">{selectedGood}</p>
-              <p className="map-neighborhood-overlay__meta">{selectedTradeoff}</p>
-            </>
-          )}
+          {/* Good/tradeoff already shown in the neighborhood cards below; avoid duplicate copy here. */}
           {housingMode === 'rent' ? <p className="map-neighborhood-overlay__rent">Avg rent {formatCurrency(selected.avgRent)}</p> : null}
         </aside>
       ) : null}

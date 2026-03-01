@@ -32,6 +32,22 @@ const NEIGHBORHOOD_RADIUS_LINE_LAYER_ID = 'wherenext-neighborhood-radius-line'
 const isLocalRegion = (region: RankedCommunity['region'] | ResolvedAnchor['region']) =>
   region === 'sf' || region === 'seattle' || region === 'irvine' || region === 'la' || region === 'nyc'
 
+const inferNeighborhoodCopy = (community: RankedCommunity, anchorLabel: string | null): NeighborhoodCopy => {
+  const strengths = [
+    { key: 'commute', value: community.commuteScore, text: `short commute from ${anchorLabel ?? 'your anchor'}` },
+    { key: 'cost', value: community.affordabilityScore, text: 'good budget fit' },
+    { key: 'lifestyle', value: community.lifestyleScore, text: 'solid lifestyle match' },
+  ].sort((a, b) => b.value - a.value)
+
+  const weakest = strengths[strengths.length - 1]
+
+  return {
+    overview: `${community.name} stands out for ${strengths[0].text} and ${strengths[1].text}.`,
+    good: `${community.name}: ${strengths[0].text}.`,
+    tradeoff: `${community.name}: watch for ${weakest.key === 'cost' ? 'higher cost pressure' : weakest.key === 'commute' ? 'peak-hour traffic' : 'fewer lifestyle options'}.`,
+  }
+}
+
 const serializeAiCopyKey = ({
   neighborhood,
   budget,
@@ -131,7 +147,6 @@ function App() {
   const [selectedPropertyId, setSelectedPropertyId] = useState<string | null>(null)
   const [isNeighborhoodFocused, setIsNeighborhoodFocused] = useState(false)
   const [aiNeighborhoodCopy, setAiNeighborhoodCopy] = useState<Record<string, NeighborhoodCopy>>({})
-  const [aiCopyLoadingById, setAiCopyLoadingById] = useState<Record<string, boolean>>({})
   const [isLoading, setIsLoading] = useState(false)
   const [hasSearched, setHasSearched] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
@@ -150,7 +165,6 @@ function App() {
   const updateTimer = useRef<number | null>(null)
   const aiCopyTimer = useRef<number | null>(null)
   const aiCopyCache = useRef<Map<string, NeighborhoodCopy>>(new Map())
-  const aiCopyRequestVersion = useRef<Record<string, number>>({})
   const navigate = useNavigate()
   const location = useLocation()
   const isResults = location.pathname === '/results'
@@ -170,9 +184,7 @@ function App() {
   const affordabilityInput = housingMode === 'buy' ? maxHomePrice : budget
   const salaryForAnalysis = housingMode === 'buy' ? Math.round(maxHomePrice / 12) : DEFAULT_RENT_SALARY
   const selectedCopy = selected ? aiNeighborhoodCopy[selected.id] ?? null : null
-  const selectedGood = selectedCopy?.good ?? ''
-  const selectedTradeoff = selectedCopy?.tradeoff ?? ''
-  const isSelectedCopyLoading = !!selected && !selectedCopy && (aiCopyLoadingById[selected.id] ?? true)
+  const selectedFallbackCopy = selected ? inferNeighborhoodCopy(selected, activeAnchorLabel) : null
 
   useEffect(() => {
     window.localStorage.removeItem('wherenext:lastResults')
@@ -333,10 +345,10 @@ function App() {
   }
 
   const getCommunityReason = (community: RankedCommunity) =>
-    aiNeighborhoodCopy[community.id]?.good ?? ''
+    aiNeighborhoodCopy[community.id]?.good ?? inferNeighborhoodCopy(community, activeAnchorLabel).good
 
   const getCommunityTradeoff = (community: RankedCommunity) =>
-    aiNeighborhoodCopy[community.id]?.tradeoff ?? ''
+    aiNeighborhoodCopy[community.id]?.tradeoff ?? inferNeighborhoodCopy(community, activeAnchorLabel).tradeoff
 
   useEffect(() => {
     if (!isResults || results.length === 0) {
@@ -364,13 +376,13 @@ function App() {
         const cached = aiCopyCache.current.get(cacheKey)
         if (cached) {
           setAiNeighborhoodCopy((previous) => ({ ...previous, [neighborhood.id]: cached }))
-          setAiCopyLoadingById((previous) => ({ ...previous, [neighborhood.id]: false }))
           return
         }
 
-        setAiCopyLoadingById((previous) => ({ ...previous, [neighborhood.id]: true }))
-        const nextVersion = (aiCopyRequestVersion.current[neighborhood.id] ?? 0) + 1
-        aiCopyRequestVersion.current[neighborhood.id] = nextVersion
+        // Keep neighborhood copy stable once we have it so the UI doesn't flip text on toggle changes.
+        if (aiNeighborhoodCopy[neighborhood.id]) {
+          return
+        }
 
         try {
           const copy = await fetchNeighborhoodCopy({
@@ -384,9 +396,6 @@ function App() {
             salary: salaryForAnalysis,
             commuteLimit: commute,
           })
-          if ((aiCopyRequestVersion.current[neighborhood.id] ?? 0) !== nextVersion) {
-            return
-          }
           const cleanedCopy = {
             overview: (copy.overview ?? '').replace(/\.{2,}/g, '.').trim(),
             good: (copy.good ?? '').replace(/^good:\s*/i, '').replace(/\.{2,}/g, '.').trim(),
@@ -399,12 +408,9 @@ function App() {
             // Ignore cache persistence errors.
           }
           setAiNeighborhoodCopy((previous) => ({ ...previous, [neighborhood.id]: cleanedCopy }))
-          setAiCopyLoadingById((previous) => ({ ...previous, [neighborhood.id]: false }))
         } catch {
-          if ((aiCopyRequestVersion.current[neighborhood.id] ?? 0) !== nextVersion) {
-            return
-          }
-          setAiCopyLoadingById((previous) => ({ ...previous, [neighborhood.id]: false }))
+          const inferred = inferNeighborhoodCopy(neighborhood, activeAnchorLabel)
+          setAiNeighborhoodCopy((previous) => ({ ...previous, [neighborhood.id]: inferred }))
         }
       })
     }, AI_COPY_DEBOUNCE_MS)
@@ -425,6 +431,7 @@ function App() {
     activeAnchorLabel,
     anchor.label,
     anchor.region,
+    aiNeighborhoodCopy,
   ])
 
   useEffect(() => {
@@ -820,17 +827,13 @@ function App() {
               onSaveMapboxToken={handleSaveMapboxToken}
               mapContainerRef={mapContainerRef}
               selected={selected}
-              selectedOverview={selectedCopy?.overview ?? ''}
-              selectedGood={selectedGood}
-              selectedTradeoff={selectedTradeoff}
+              selectedOverview={selectedCopy?.overview ?? selectedFallbackCopy?.overview ?? ''}
               housingMode={housingMode}
-              isSelectedCopyLoading={isSelectedCopyLoading}
               results={results}
               selectedId={selectedId}
               onSelect={handleNeighborhoodSelect}
               buildReason={getCommunityReason}
               buildTradeoff={getCommunityTradeoff}
-              isCopyLoading={(item) => !aiNeighborhoodCopy[item.id] && (aiCopyLoadingById[item.id] ?? true)}
               properties={properties}
               isPropertiesLoading={isPropertiesLoading}
               propertyNotice={propertyNotice}

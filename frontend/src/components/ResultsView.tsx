@@ -19,16 +19,12 @@ const ResultsView = ({
   mapContainerRef,
   selected,
   selectedOverview,
-  selectedGood,
-  selectedTradeoff,
   housingMode,
-  isSelectedCopyLoading,
   results,
   selectedId,
   onSelect,
   buildReason,
   buildTradeoff,
-  isCopyLoading,
   properties,
   isPropertiesLoading,
   propertyNotice,
@@ -51,16 +47,12 @@ const ResultsView = ({
   mapContainerRef: RefObject<HTMLDivElement | null>
   selected: RankedCommunity | null
   selectedOverview: string
-  selectedGood: string
-  selectedTradeoff: string
   housingMode: HousingMode
-  isSelectedCopyLoading: boolean
   results: RankedCommunity[]
   selectedId: string | null
   onSelect: (id: string) => void
   buildReason: (item: RankedCommunity) => string
   buildTradeoff: (item: RankedCommunity) => string
-  isCopyLoading: (item: RankedCommunity) => boolean
   properties: PropertyListing[]
   isPropertiesLoading: boolean
   propertyNotice: string | null
@@ -86,10 +78,7 @@ const ResultsView = ({
           mapContainerRef={mapContainerRef}
           selected={selected}
           selectedOverview={selectedOverview}
-          selectedGood={selectedGood}
-          selectedTradeoff={selectedTradeoff}
           housingMode={housingMode}
-          isSelectedCopyLoading={isSelectedCopyLoading}
           onCloseNeighborhood={onCloseNeighborhood}
           selectedProperty={selectedProperty}
           onClosePropertyDetail={onClosePropertyDetail}
@@ -101,7 +90,6 @@ const ResultsView = ({
           onSelect={onSelect}
           buildReason={buildReason}
           buildTradeoff={buildTradeoff}
-          isCopyLoading={isCopyLoading}
         />
 
         {selected ? (
