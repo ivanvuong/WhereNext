@@ -2,6 +2,16 @@
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
+## Mapbox setup (dev)
+
+The map reads a Mapbox access token from `VITE_MAPBOX_TOKEN` or from the in-app token prompt.
+
+Options:
+1. Create `/Users/kirthanmurthy/Desktop/WhereNext/frontend/.env` from `.env.example` and set `VITE_MAPBOX_TOKEN`.
+2. Paste a token directly in the UI when the map prompts you. It is saved to `localStorage`.
+
+For team testing, avoid locking the token to a single localhost URL. Either leave URL restrictions empty for dev, or allow the host/port your teammates use.
+
 Currently, two official plugins are available:
 
 - [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh

@@ -1,8 +1,11 @@
 export type HouseholdType = 'single' | 'couple' | 'family' | 'with pets'
-export type Region = 'sf' | 'irvine'
+export type Region = 'sf' | 'irvine' | 'custom'
 
 export type AnalyzeRequestPayload = {
   anchor_input: string
+  anchor_label?: string
+  anchor_latitude?: number
+  anchor_longitude?: number
   budget: number
   salary: number
   commute_limit: number
@@ -28,6 +31,8 @@ export type RankedCommunityApi = {
 export type AnalyzeResponseApi = {
   anchor_label: string
   anchor_region: Region
+  anchor_latitude: number
+  anchor_longitude: number
   candidate_count: number
   communities: RankedCommunityApi[]
 }

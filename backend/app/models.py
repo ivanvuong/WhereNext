@@ -4,7 +4,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-Region = Literal["sf", "irvine"]
+Region = Literal["sf", "irvine", "custom"]
 HouseholdType = Literal["single", "couple", "family", "with pets"]
 
 
@@ -32,6 +32,9 @@ class Community(BaseModel):
 
 class AnalyzeRequest(BaseModel):
     anchor_input: str = Field(default="Google SF", min_length=1)
+    anchor_label: str | None = None
+    anchor_latitude: float | None = None
+    anchor_longitude: float | None = None
     budget: int = Field(default=2500, ge=600, le=12000)
     salary: int = Field(default=80000, ge=0, le=2_000_000)
     commute_limit: int = Field(default=20, ge=1, le=120)
@@ -57,5 +60,7 @@ class RankedCommunity(BaseModel):
 class AnalyzeResponse(BaseModel):
     anchor_label: str
     anchor_region: Region
+    anchor_latitude: float
+    anchor_longitude: float
     candidate_count: int
     communities: list[RankedCommunity]
