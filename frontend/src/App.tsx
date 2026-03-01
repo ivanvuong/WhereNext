@@ -34,6 +34,8 @@ function App() {
   const [lifestyle, setLifestyle] = useState(DEFAULT_PREFS)
   const [results, setResults] = useState<RankedCommunity[]>([])
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [selectedPropertyId, setSelectedPropertyId] = useState<string | null>(null)
+  const [isNeighborhoodFocused, setIsNeighborhoodFocused] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [hasSearched, setHasSearched] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
@@ -57,6 +59,10 @@ function App() {
   const selected = useMemo(
     () => results.find((item) => item.id === selectedId) ?? results[0] ?? null,
     [results, selectedId],
+  )
+  const selectedProperty = useMemo(
+    () => properties.find((item) => item.id === selectedPropertyId) ?? null,
+    [properties, selectedPropertyId],
   )
 
   const anchor = useMemo(() => resolvedAnchor ?? resolveAnchor(anchorInput), [anchorInput, resolvedAnchor])
@@ -103,6 +109,8 @@ function App() {
         })
         setResults(ranked)
         setSelectedId(ranked[0]?.id ?? null)
+        setSelectedPropertyId(null)
+        setIsNeighborhoodFocused(false)
         setProperties([])
         setPropertyNotice(null)
         setActiveAnchorLabel(anchorPayload.label)
@@ -129,6 +137,8 @@ function App() {
       const ranked = response.communities.map(toCommunity)
       setResults(ranked)
       setSelectedId(ranked[0]?.id ?? null)
+      setSelectedPropertyId(null)
+      setIsNeighborhoodFocused(false)
       setProperties([])
       setPropertyNotice(null)
       setActiveAnchorLabel(response.anchor_label)
@@ -155,6 +165,8 @@ function App() {
 
       setResults(ranked)
       setSelectedId(ranked[0]?.id ?? null)
+      setSelectedPropertyId(null)
+      setIsNeighborhoodFocused(false)
       setProperties([])
       setPropertyNotice(null)
       setActiveAnchorLabel(fallbackAnchor.label)
@@ -166,6 +178,23 @@ function App() {
 
   const showSidebar = () => {
     navigate('/results')
+  }
+
+  const handleNeighborhoodSelect = (id: string) => {
+    setSelectedId(id)
+    setSelectedPropertyId(null)
+    setIsNeighborhoodFocused(true)
+  }
+
+  const handleCloseNeighborhood = () => {
+    setIsNeighborhoodFocused(false)
+    setSelectedPropertyId(null)
+    setProperties([])
+    setPropertyNotice(null)
+  }
+
+  const handleClosePropertyDetail = () => {
+    setSelectedPropertyId(null)
   }
 
   const handleSaveMapboxToken = () => {
@@ -203,7 +232,10 @@ function App() {
   }, [location.pathname])
 
   useEffect(() => {
-    if (!isResults || !selected) {
+    if (!isResults || !selected || !isNeighborhoodFocused) {
+      setProperties([])
+      setPropertyNotice(null)
+      setIsPropertiesLoading(false)
       return
     }
 
@@ -227,22 +259,35 @@ function App() {
           neighborhood: selected.name,
           city: region.city,
           state_code: region.state_code,
+          anchor_latitude: anchor.latitude,
+          anchor_longitude: anchor.longitude,
+          neighborhood_latitude: selected.latitude,
+          neighborhood_longitude: selected.longitude,
           budget,
           salary,
+          commute_limit: commute,
+          radius,
           household,
-          limit: 6,
+          limit: 20,
         })
         if (cancelled) {
           return
         }
         const mapped = response.listings.map(toPropertyListing)
         setProperties(mapped)
+        setSelectedPropertyId((previous) => {
+          if (previous && mapped.some((home) => home.id === previous)) {
+            return previous
+          }
+          return mapped[0]?.id ?? null
+        })
         if (mapped.length === 0) {
           setPropertyNotice('No matching homes found for this neighborhood and filter mix.')
         }
       } catch {
         if (!cancelled) {
           setProperties([])
+          setSelectedPropertyId(null)
           setPropertyNotice('Could not load homes right now. Check backend API key/config.')
         }
       } finally {
@@ -256,7 +301,18 @@ function App() {
     return () => {
       cancelled = true
     }
-  }, [isResults, selected?.id, budget, salary, household])
+  }, [
+    isResults,
+    selected?.id,
+    budget,
+    salary,
+    household,
+    commute,
+    radius,
+    anchor.latitude,
+    anchor.longitude,
+    isNeighborhoodFocused,
+  ])
 
   const topCard: TopCard | null = selected
     ? {
@@ -269,7 +325,7 @@ function App() {
   const hasResults = results.length > 0
 
   useEffect(() => {
-    if (!isResults) {
+    if (!isResults || !hasResults) {
       if (mapRef.current) {
         mapRef.current.remove()
         mapRef.current = null
@@ -311,7 +367,7 @@ function App() {
         mapRef.current = null
       }
     }
-  }, [anchor.latitude, anchor.longitude, isResults, mapboxToken])
+  }, [anchor.latitude, anchor.longitude, hasResults, isResults, mapboxToken])
 
   useEffect(() => {
     if (!isResults || !mapRef.current || !mapboxToken) {
@@ -333,11 +389,14 @@ function App() {
     markerRefs.current.push(anchorMarker)
     bounds.extend([anchor.longitude, anchor.latitude])
 
-    results.forEach((result) => {
+    const visibleNeighborhoods =
+      isNeighborhoodFocused && selected ? results.filter((result) => result.id === selected.id) : results
+
+    visibleNeighborhoods.forEach((result) => {
       const el = document.createElement('button')
       el.type = 'button'
       el.className = `mapbox-marker ${selected?.id === result.id ? 'mapbox-marker--active' : ''}`
-      el.addEventListener('click', () => setSelectedId(result.id))
+      el.addEventListener('click', () => handleNeighborhoodSelect(result.id))
 
       const marker = new mapboxgl.Marker({ element: el, anchor: 'center' })
         .setLngLat([result.longitude, result.latitude])
@@ -346,14 +405,58 @@ function App() {
       bounds.extend([result.longitude, result.latitude])
     })
 
-    if (results.length > 0) {
+    const mapReadyHomes = isNeighborhoodFocused
+      ? properties.filter((home) => home.latitude !== null && home.longitude !== null)
+      : []
+    const homeBounds = new mapboxgl.LngLatBounds()
+
+    mapReadyHomes.forEach((home) => {
+      if (home.longitude === null || home.latitude === null) {
+        return
+      }
+      const el = document.createElement('button')
+      el.type = 'button'
+      el.className = `mapbox-home-marker ${selectedPropertyId === home.id ? 'mapbox-home-marker--active' : ''}`
+      el.addEventListener('click', () => setSelectedPropertyId(home.id))
+
+      const marker = new mapboxgl.Marker({ element: el, anchor: 'center' })
+        .setLngLat([home.longitude, home.latitude])
+        .addTo(map)
+      markerRefs.current.push(marker)
+      homeBounds.extend([home.longitude, home.latitude])
+    })
+
+    if (isNeighborhoodFocused && selected) {
+      if (!homeBounds.isEmpty()) {
+        homeBounds.extend([selected.longitude, selected.latitude])
+        map.fitBounds(homeBounds, { padding: 90, duration: 700, maxZoom: 15 })
+      } else {
+        map.flyTo({
+          center: [selected.longitude, selected.latitude],
+          zoom: 13.3,
+          speed: 0.8,
+        })
+      }
+    } else if (results.length > 0) {
       map.fitBounds(bounds, { padding: 70, duration: 600, maxZoom: 12.5 })
     } else {
       map.setCenter([anchor.longitude, anchor.latitude])
       map.setZoom(10.5)
     }
     map.resize()
-  }, [activeAnchorLabel, anchor.label, anchor.latitude, anchor.longitude, isResults, mapboxToken, results, selected?.id])
+  }, [
+    activeAnchorLabel,
+    anchor.label,
+    anchor.latitude,
+    anchor.longitude,
+    isResults,
+    mapboxToken,
+    results,
+    selected?.id,
+    isNeighborhoodFocused,
+    properties,
+    selectedPropertyId,
+  ])
 
   return (
     <main className={`app app--${isResults ? 'results' : 'survey'}`}>
@@ -397,12 +500,18 @@ function App() {
               anchor={anchor}
               results={results}
               selectedId={selectedId}
-              onSelect={setSelectedId}
+              onSelect={handleNeighborhoodSelect}
               buildReason={buildReason}
               buildTradeoff={buildTradeoff}
               properties={properties}
               isPropertiesLoading={isPropertiesLoading}
               propertyNotice={propertyNotice}
+              isNeighborhoodFocused={isNeighborhoodFocused}
+              onCloseNeighborhood={handleCloseNeighborhood}
+              selectedProperty={selectedProperty}
+              selectedPropertyId={selectedPropertyId}
+              onSelectProperty={setSelectedPropertyId}
+              onClosePropertyDetail={handleClosePropertyDetail}
             />
           }
         />

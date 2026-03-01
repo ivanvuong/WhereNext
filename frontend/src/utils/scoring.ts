@@ -66,10 +66,16 @@ export const scoreCommunitiesLocally = ({
       }
 
       const estimatedCommute = distanceMiles * 3.4 + 5
+      if (estimatedCommute > commuteLimit) {
+        return null
+      }
       const commuteGap = Math.abs(estimatedCommute - commuteLimit)
       const commuteScore = clamp(100 - commuteGap * 3.2, 0, 100)
 
       const affordabilityDelta = community.avgRent - effectiveBudget
+      if (affordabilityDelta > 0) {
+        return null
+      }
       const affordabilityScore = clamp(100 - Math.max(affordabilityDelta, 0) / 14, 12, 100)
 
       const lifestyleBase = dims.reduce((sum, key) => sum + community.lifestyle[key], 0) / dims.length

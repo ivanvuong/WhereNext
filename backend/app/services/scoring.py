@@ -37,10 +37,14 @@ def score(request: AnalyzeRequest) -> tuple[ResolvedAnchor, list[RankedCommunity
             continue
 
         estimated_commute = distance_miles * 3.4 + 5
+        if estimated_commute > request.commute_limit:
+            continue
         commute_gap = abs(estimated_commute - request.commute_limit)
         commute_score = clamp(100 - commute_gap * 3.2, 0, 100)
 
         affordability_delta = community.avg_rent - effective_budget
+        if affordability_delta > 0:
+            continue
         affordability_score = clamp(100 - max(affordability_delta, 0) / 14, 12, 100)
 
         lifestyle_base = sum(getattr(community.lifestyle, dim) for dim in dimensions) / len(dimensions)

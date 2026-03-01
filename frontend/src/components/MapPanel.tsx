@@ -1,4 +1,5 @@
 import type { RefObject } from 'react'
+import type { PropertyListing } from '../types/app'
 
 const MapPanel = ({
   mapboxToken,
@@ -6,12 +7,16 @@ const MapPanel = ({
   onMapboxTokenInput,
   onSaveMapboxToken,
   mapContainerRef,
+  selectedProperty,
+  onClosePropertyDetail,
 }: {
   mapboxToken: string
   mapboxTokenInput: string
   onMapboxTokenInput: (value: string) => void
   onSaveMapboxToken: () => void
   mapContainerRef: RefObject<HTMLDivElement | null>
+  selectedProperty: PropertyListing | null
+  onClosePropertyDetail: () => void
 }) => (
   <article className="map-panel">
     <div className="map-canvas" role="img" aria-label="Community recommendation map">
@@ -35,7 +40,29 @@ const MapPanel = ({
       ) : (
         <div className="mapbox-container" ref={mapContainerRef} />
       )}
-
+      {selectedProperty ? (
+        <div className="map-property-detail">
+          <div className="map-property-detail__header">
+            <h4>Home Details</h4>
+            <button type="button" className="panel-close" onClick={onClosePropertyDetail} aria-label="Close home details">
+              X
+            </button>
+          </div>
+          <p className="map-property-detail__address">{selectedProperty.address}</p>
+          <p className="map-property-detail__price">
+            {selectedProperty.listPrice ? `$${selectedProperty.listPrice.toLocaleString()}` : 'Price unavailable'}
+          </p>
+          <p className="map-property-detail__meta">
+            {selectedProperty.beds ?? '-'} bd · {selectedProperty.baths ?? '-'} ba · {selectedProperty.sqft ? `${selectedProperty.sqft.toLocaleString()} sqft` : 'sqft -'}
+          </p>
+          <p className="map-property-detail__meta">Status: {selectedProperty.status.replaceAll('_', ' ')}</p>
+          {selectedProperty.detailUrl ? (
+            <a href={selectedProperty.detailUrl} target="_blank" rel="noreferrer" className="property-item__link">
+              View full listing
+            </a>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   </article>
 )

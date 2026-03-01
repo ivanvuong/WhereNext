@@ -6,8 +6,14 @@ export type PropertySearchRequestPayload = {
   neighborhood: string
   city?: string
   state_code?: string
+  anchor_latitude?: number
+  anchor_longitude?: number
+  neighborhood_latitude?: number
+  neighborhood_longitude?: number
   budget: number
   salary: number
+  commute_limit: number
+  radius: number
   household: HouseholdType
   limit?: number
 }
@@ -20,6 +26,8 @@ export type PropertyListingApi = {
   beds: number | null
   baths: number | null
   sqft: number | null
+  latitude: number | null
+  longitude: number | null
   primary_photo: string | null
   detail_url: string | null
 }

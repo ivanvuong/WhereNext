@@ -29,6 +29,12 @@ const ResultsView = ({
   properties,
   isPropertiesLoading,
   propertyNotice,
+  isNeighborhoodFocused,
+  onCloseNeighborhood,
+  selectedProperty,
+  selectedPropertyId,
+  onSelectProperty,
+  onClosePropertyDetail,
 }: {
   notice: string | null
   hasResults: boolean
@@ -52,6 +58,12 @@ const ResultsView = ({
   properties: PropertyListing[]
   isPropertiesLoading: boolean
   propertyNotice: string | null
+  isNeighborhoodFocused: boolean
+  onCloseNeighborhood: () => void
+  selectedProperty: PropertyListing | null
+  selectedPropertyId: string | null
+  onSelectProperty: (id: string) => void
+  onClosePropertyDetail: () => void
 }) => (
   <section className="workspace">
     {notice ? <p className="workspace-notice">{notice}</p> : null}
@@ -67,6 +79,8 @@ const ResultsView = ({
           onMapboxTokenInput={onMapboxTokenInput}
           onSaveMapboxToken={onSaveMapboxToken}
           mapContainerRef={mapContainerRef}
+          selectedProperty={selectedProperty}
+          onClosePropertyDetail={onClosePropertyDetail}
         />
 
         <RecommendationList
@@ -85,6 +99,10 @@ const ResultsView = ({
             properties={properties}
             isPropertiesLoading={isPropertiesLoading}
             propertyNotice={propertyNotice}
+            isNeighborhoodFocused={isNeighborhoodFocused}
+            onCloseNeighborhood={onCloseNeighborhood}
+            selectedPropertyId={selectedPropertyId}
+            onSelectProperty={onSelectProperty}
           />
         ) : null}
       </div>

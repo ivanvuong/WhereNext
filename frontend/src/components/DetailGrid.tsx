@@ -7,6 +7,10 @@ const DetailGrid = ({
   properties,
   isPropertiesLoading,
   propertyNotice,
+  isNeighborhoodFocused,
+  onCloseNeighborhood,
+  selectedPropertyId,
+  onSelectProperty,
 }: {
   selected: RankedCommunity
   anchorLabel: string | null
@@ -14,6 +18,10 @@ const DetailGrid = ({
   properties: PropertyListing[]
   isPropertiesLoading: boolean
   propertyNotice: string | null
+  isNeighborhoodFocused: boolean
+  onCloseNeighborhood: () => void
+  selectedPropertyId: string | null
+  onSelectProperty: (id: string) => void
 }) => (
   <section className="detail-grid">
     <article className="location-card">
@@ -52,18 +60,39 @@ const DetailGrid = ({
 
     <article className="property-card" aria-label="Homes in selected neighborhood">
       <div className="property-card__header">
-        <h3>Homes</h3>
-        <p>Listings that align with your current filters.</p>
+        <div>
+          <h3>Homes</h3>
+          <p>
+            {isNeighborhoodFocused
+              ? `Showing homes in ${selected.name}.`
+              : 'Click a yellow neighborhood on the map or top choices to drill in.'}
+          </p>
+        </div>
+        {isNeighborhoodFocused ? (
+          <button type="button" className="panel-close" onClick={onCloseNeighborhood} aria-label="Close neighborhood homes">
+            X
+          </button>
+        ) : null}
       </div>
+
       <div className="property-list">
-        {isPropertiesLoading ? <p className="property-meta">Loading homes...</p> : null}
-        {!isPropertiesLoading && propertyNotice ? <p className="property-meta">{propertyNotice}</p> : null}
-        {!isPropertiesLoading && !propertyNotice && properties.length === 0 ? (
+        {!isNeighborhoodFocused ? (
+          <p className="property-meta">Neighborhood-level homes appear after selecting a neighborhood.</p>
+        ) : null}
+        {isNeighborhoodFocused && isPropertiesLoading ? <p className="property-meta">Loading homes...</p> : null}
+        {isNeighborhoodFocused && !isPropertiesLoading && propertyNotice ? <p className="property-meta">{propertyNotice}</p> : null}
+        {isNeighborhoodFocused && !isPropertiesLoading && !propertyNotice && properties.length === 0 ? (
           <p className="property-meta">No homes available yet.</p>
         ) : null}
-        {!isPropertiesLoading &&
+        {isNeighborhoodFocused &&
+          !isPropertiesLoading &&
           properties.map((home) => (
-            <article key={home.id} className="property-item">
+            <button
+              key={home.id}
+              type="button"
+              className={`property-item property-item--selectable ${selectedPropertyId === home.id ? 'property-item--active' : ''}`}
+              onClick={() => onSelectProperty(home.id)}
+            >
               {home.primaryPhoto ? (
                 <img className="property-item__image" src={home.primaryPhoto} alt={home.address} loading="lazy" />
               ) : (
@@ -77,27 +106,9 @@ const DetailGrid = ({
                 <p className="property-item__stats">
                   {home.beds ?? '-'} bd · {home.baths ?? '-'} ba · {home.sqft ? `${home.sqft.toLocaleString()} sqft` : 'sqft -'}
                 </p>
-                <p className="property-item__status">{home.status.replaceAll('_', ' ')}</p>
-                {home.detailUrl ? (
-                  <a href={home.detailUrl} target="_blank" rel="noreferrer" className="property-item__link">
-                    View listing
-                  </a>
-                ) : null}
               </div>
-            </article>
+            </button>
           ))}
-      </div>
-    </article>
-
-    <article className="tenants-card">
-      <h3>Tenants</h3>
-      <p>Join our growing community of active members.</p>
-      <div className="gauge">
-        <div className="gauge__arc" />
-        <div className="gauge__value">
-          <strong>8.5k</strong>
-          <span>members</span>
-        </div>
       </div>
     </article>
   </section>

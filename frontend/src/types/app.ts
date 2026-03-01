@@ -35,6 +35,8 @@ export type PropertyListing = {
   beds: number | null
   baths: number | null
   sqft: number | null
+  latitude: number | null
+  longitude: number | null
   primaryPhoto: string | null
   detailUrl: string | null
 }

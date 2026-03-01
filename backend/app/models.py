@@ -70,10 +70,16 @@ class PropertySearchRequest(BaseModel):
     neighborhood: str = Field(min_length=1)
     city: str | None = None
     state_code: str | None = None
+    anchor_latitude: float | None = None
+    anchor_longitude: float | None = None
+    neighborhood_latitude: float | None = None
+    neighborhood_longitude: float | None = None
     budget: int = Field(default=2500, ge=600, le=12000)
     salary: int = Field(default=80000, ge=0, le=2_000_000)
+    commute_limit: int = Field(default=20, ge=1, le=120)
+    radius: int = Field(default=15, ge=1, le=30)
     household: HouseholdType = "single"
-    limit: int = Field(default=8, ge=1, le=20)
+    limit: int = Field(default=20, ge=1, le=40)
 
 
 class PropertyListing(BaseModel):
@@ -84,6 +90,8 @@ class PropertyListing(BaseModel):
     beds: float | None = None
     baths: float | None = None
     sqft: int | None = None
+    latitude: float | None = None
+    longitude: float | None = None
     primary_photo: str | None = None
     detail_url: str | None = None
 
