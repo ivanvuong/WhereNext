@@ -39,6 +39,7 @@ export const scoreCommunitiesLocally = ({
   radius,
   lifestyleInput,
   household,
+  communities = COMMUNITIES,
 }: {
   anchor: ResolvedAnchor
   budget: number
@@ -47,6 +48,7 @@ export const scoreCommunitiesLocally = ({
   radius: number
   lifestyleInput: string
   household: HouseholdType
+  communities?: Community[]
 }): RankedCommunity[] => {
   const dims = parsePreferenceDimensions(lifestyleInput)
   const householdWeight =
@@ -55,7 +57,8 @@ export const scoreCommunitiesLocally = ({
   const monthlyAffordableFromSalary = (salary / 12) * 0.34
   const effectiveBudget = Math.max(budget, monthlyAffordableFromSalary)
 
-  const candidates = COMMUNITIES.filter((community) => community.region === anchor.region || anchor.region === 'custom')
+  const candidates = communities
+    .filter((community) => community.region === anchor.region || anchor.region === 'custom')
     .map((community) => {
       const distanceMiles = haversineMiles(anchor.latitude, anchor.longitude, community.latitude, community.longitude)
       if (distanceMiles > radius) {
