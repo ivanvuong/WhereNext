@@ -24,6 +24,9 @@ def _derive_search_location(payload: PropertySearchRequest) -> str:
 
 
 def _derive_price_ceiling(payload: PropertySearchRequest) -> int:
+    if payload.max_home_price is not None:
+        return max(100_000, min(payload.max_home_price, 10_000_000))
+
     income_based = int(payload.salary * 12.0)
     budget_based = int(payload.budget * 12 * 120.0)
     return max(600_000, min(max(income_based, budget_based), 5_000_000))
@@ -44,10 +47,21 @@ def _address_matches_neighborhood(payload: PropertySearchRequest, listing: Prope
     return (not neighborhood or neighborhood in address) and (not city or city in address)
 
 
+def _status_matches_mode(payload: PropertySearchRequest, listing: PropertyListing) -> bool:
+    normalized = (listing.status or "").lower().replace("-", "_")
+    if payload.housing_mode == "rent":
+        return "rent" in normalized or "lease" in normalized
+    return "sale" in normalized or "build" in normalized or normalized in {"new_construction"}
+
+
 def _within_slider_constraints(payload: PropertySearchRequest, listing: PropertyListing) -> bool:
-    price_ceiling = _derive_price_ceiling(payload)
-    if listing.list_price is not None and listing.list_price > price_ceiling:
-        return False
+    if payload.housing_mode == "rent":
+        if listing.list_price is not None and listing.list_price > payload.budget:
+            return False
+    else:
+        price_ceiling = _derive_price_ceiling(payload)
+        if listing.list_price is not None and listing.list_price > price_ceiling:
+            return False
 
     if (
         listing.latitude is None
@@ -108,12 +122,19 @@ def _extract_listing(raw: dict[str, Any]) -> PropertyListing | None:
     detail_url = f"https://www.realtor.com/realestateandhomes-detail/{permalink}" if permalink else None
     latitude = coordinates.get("lat") or coordinates.get("latitude")
     longitude = coordinates.get("lon") or coordinates.get("lng") or coordinates.get("longitude")
+    list_price = (
+        raw.get("list_price")
+        or description.get("list_price")
+        or raw.get("price")
+        or description.get("price")
+        or raw.get("list_price_min")
+    )
 
     return PropertyListing(
         id=property_id,
         address=", ".join(address_parts),
         status=str(raw.get("status") or "for_sale"),
-        list_price=raw.get("list_price"),
+        list_price=list_price,
         beds=description.get("beds"),
         baths=description.get("baths"),
         sqft=description.get("sqft"),
@@ -136,13 +157,17 @@ async def fetch_property_listings(payload: PropertySearchRequest) -> list[Proper
         "with pets": {"min": 1},
     }[payload.household]
 
+    request_statuses = ["for_sale", "ready_to_build"]
+    if payload.housing_mode == "rent":
+        request_statuses = ["for_rent"]
+
     request_body: dict[str, Any] = {
         "limit": min(max(payload.limit * 3, payload.limit), 80),
         "offset": 0,
-        "status": ["for_sale", "ready_to_build"],
+        "status": request_statuses,
         "sort": {"direction": "desc", "field": "list_date"},
         "search_location": {"radius": max(2, min(10, payload.radius)), "location": _derive_search_location(payload)},
-        "list_price": {"max": _derive_price_ceiling(payload)},
+        "list_price": {"max": payload.budget if payload.housing_mode == "rent" else _derive_price_ceiling(payload)},
         "beds": household_beds,
     }
 
@@ -170,7 +195,7 @@ async def fetch_property_listings(payload: PropertySearchRequest) -> list[Proper
             continue
         parsed = _extract_listing(raw)
         if parsed is not None:
-            if _within_slider_constraints(payload, parsed):
+            if _status_matches_mode(payload, parsed) and _within_slider_constraints(payload, parsed):
                 listings.append(parsed)
         if len(listings) >= payload.limit:
             break

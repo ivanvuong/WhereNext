@@ -157,6 +157,42 @@
   gap: 18px;
 }
 
+.mode-toggle {
+  display: inline-grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  width: 236px;
+  padding: 6px;
+  border-radius: 999px;
+  background: #d8dae0;
+  border: 1px solid #d2d5dc;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55);
+}
+
+.mode-toggle__button {
+  border: 0;
+  height: 56px;
+  border-radius: 999px;
+  background: transparent;
+  color: #70758a;
+  font-family: var(--font-heading);
+  font-size: 1.95rem;
+  letter-spacing: -0.01em;
+  font-weight: 650;
+  cursor: pointer;
+  transition: background-color 220ms ease, color 220ms ease, transform 220ms ease;
+}
+
+.mode-toggle__button:hover {
+  color: #454c63;
+}
+
+.mode-toggle__button--active {
+  background: #020626;
+  color: #ffffff;
+  box-shadow: 0 10px 20px rgba(2, 6, 38, 0.24);
+}
+
 .field-group {
   display: flex;
   flex-direction: column;
@@ -1024,6 +1060,15 @@ textarea::placeholder {
 
   .survey__header p {
     font-size: 1rem;
+  }
+
+  .mode-toggle {
+    width: 210px;
+  }
+
+  .mode-toggle__button {
+    height: 52px;
+    font-size: 1.75rem;
   }
 
   .slider-grid--split {

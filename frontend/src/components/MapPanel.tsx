@@ -1,5 +1,6 @@
 import type { RefObject } from 'react'
 import type { PropertyListing } from '../types/app'
+import { formatPropertyPrice } from '../utils/properties'
 
 const MapPanel = ({
   mapboxToken,
@@ -50,7 +51,7 @@ const MapPanel = ({
           </div>
           <p className="map-property-detail__address">{selectedProperty.address}</p>
           <p className="map-property-detail__price">
-            {selectedProperty.listPrice ? `$${selectedProperty.listPrice.toLocaleString()}` : 'Price unavailable'}
+            {formatPropertyPrice(selectedProperty)}
           </p>
           <p className="map-property-detail__meta">
             {selectedProperty.beds ?? '-'} bd · {selectedProperty.baths ?? '-'} ba · {selectedProperty.sqft ? `${selectedProperty.sqft.toLocaleString()} sqft` : 'sqft -'}

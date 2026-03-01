@@ -1,5 +1,7 @@
 import type { Region } from '../api/analyze'
 
+export type HousingMode = 'buy' | 'rent'
+
 export type ResolvedAnchor = {
   label: string
   latitude: number

@@ -1,15 +1,18 @@
 import type { HouseholdType } from '../api/analyze'
 import Logo from './Logo'
 import SurveyForm from './SurveyForm'
+import type { HousingMode } from '../types/app'
 
 const SurveyPanel = ({
   isResults,
+  housingMode,
+  onHousingModeChange,
   anchorInput,
   onAnchorChange,
   budget,
   onBudgetChange,
-  salary,
-  onSalaryChange,
+  maxHomePrice,
+  onMaxHomePriceChange,
   commute,
   onCommuteChange,
   radius,
@@ -21,12 +24,14 @@ const SurveyPanel = ({
   onFindCommunities,
 }: {
   isResults: boolean
+  housingMode: HousingMode
+  onHousingModeChange: (value: HousingMode) => void
   anchorInput: string
   onAnchorChange: (value: string) => void
   budget: number
   onBudgetChange: (value: number) => void
-  salary: number
-  onSalaryChange: (value: number) => void
+  maxHomePrice: number
+  onMaxHomePriceChange: (value: number) => void
   commute: number
   onCommuteChange: (value: number) => void
   radius: number
@@ -51,12 +56,14 @@ const SurveyPanel = ({
 
       <SurveyForm
         isResults={isResults}
+        housingMode={housingMode}
+        onHousingModeChange={onHousingModeChange}
         anchorInput={anchorInput}
         onAnchorChange={onAnchorChange}
         budget={budget}
         onBudgetChange={onBudgetChange}
-        salary={salary}
-        onSalaryChange={onSalaryChange}
+        maxHomePrice={maxHomePrice}
+        onMaxHomePriceChange={onMaxHomePriceChange}
         commute={commute}
         onCommuteChange={onCommuteChange}
         radius={radius}

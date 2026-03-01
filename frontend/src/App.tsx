@@ -7,7 +7,7 @@ import { analyzeCommunities, type HouseholdType } from './api/analyze'
 import { searchProperties } from './api/properties'
 import SurveyPanel from './components/SurveyPanel'
 import ResultsView from './components/ResultsView'
-import type { PropertyListing, RankedCommunity, ResolvedAnchor, TopCard } from './types/app'
+import type { HousingMode, PropertyListing, RankedCommunity, ResolvedAnchor, TopCard } from './types/app'
 import { geocodeAnchor, resolveAnchor } from './utils/geo'
 import {
   buildReason,
@@ -20,14 +20,16 @@ import { toPropertyListing } from './utils/properties'
 
 const DEFAULT_ANCHOR = ''
 const DEFAULT_PREFS = ''
+const DEFAULT_RENT_SALARY = 80_000
 
 function App() {
   const mapContainerRef = useRef<HTMLDivElement | null>(null)
   const mapRef = useRef<mapboxgl.Map | null>(null)
   const markerRefs = useRef<mapboxgl.Marker[]>([])
   const [anchorInput, setAnchorInput] = useState(DEFAULT_ANCHOR)
+  const [housingMode, setHousingMode] = useState<HousingMode>('buy')
   const [budget, setBudget] = useState(2500)
-  const [salary, setSalary] = useState(80000)
+  const [maxHomePrice, setMaxHomePrice] = useState(1_200_000)
   const [commute, setCommute] = useState(20)
   const [radius, setRadius] = useState(15)
   const [household, setHousehold] = useState<HouseholdType>('single')
@@ -68,6 +70,8 @@ function App() {
   const anchor = useMemo(() => resolvedAnchor ?? resolveAnchor(anchorInput), [anchorInput, resolvedAnchor])
   const envMapboxToken = (import.meta.env.VITE_MAPBOX_TOKEN as string | undefined)?.trim()
   const mapboxToken = runtimeMapboxToken.trim() || envMapboxToken || ''
+  const affordabilityInput = housingMode === 'buy' ? maxHomePrice : budget
+  const salaryForAnalysis = housingMode === 'buy' ? Math.round(maxHomePrice / 12) : DEFAULT_RENT_SALARY
 
   useEffect(() => {
     window.localStorage.removeItem('wherenext:lastResults')
@@ -100,7 +104,7 @@ function App() {
         const ranked = scoreCommunitiesLocally({
           anchor: anchorPayload,
           budget,
-          salary,
+          salary: salaryForAnalysis,
           commuteLimit: commute,
           radius,
           lifestyleInput: lifestyle,
@@ -127,7 +131,7 @@ function App() {
         anchor_latitude: anchorPayload.latitude,
         anchor_longitude: anchorPayload.longitude,
         budget,
-        salary,
+        salary: salaryForAnalysis,
         commute_limit: commute,
         radius,
         household,
@@ -156,7 +160,7 @@ function App() {
       const ranked = scoreCommunitiesLocally({
         anchor: fallbackAnchor,
         budget,
-        salary,
+        salary: salaryForAnalysis,
         commuteLimit: commute,
         radius,
         lifestyleInput: lifestyle,
@@ -225,7 +229,7 @@ function App() {
         window.clearTimeout(updateTimer.current)
       }
     }
-  }, [isResults, anchorInput, budget, salary, commute, radius, household, lifestyle])
+  }, [isResults, anchorInput, housingMode, affordabilityInput, commute, radius, household, lifestyle])
 
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0 })
@@ -264,10 +268,12 @@ function App() {
           neighborhood_latitude: selected.latitude,
           neighborhood_longitude: selected.longitude,
           budget,
-          salary,
+          salary: salaryForAnalysis,
           commute_limit: commute,
           radius,
           household,
+          housing_mode: housingMode,
+          max_home_price: housingMode === 'buy' ? maxHomePrice : undefined,
           limit: 20,
         })
         if (cancelled) {
@@ -304,8 +310,9 @@ function App() {
   }, [
     isResults,
     selected?.id,
+    housingMode,
     budget,
-    salary,
+    maxHomePrice,
     household,
     commute,
     radius,
@@ -462,12 +469,14 @@ function App() {
     <main className={`app app--${isResults ? 'results' : 'survey'}`}>
       <SurveyPanel
         isResults={isResults}
+        housingMode={housingMode}
+        onHousingModeChange={setHousingMode}
         anchorInput={anchorInput}
         onAnchorChange={setAnchorInput}
         budget={budget}
         onBudgetChange={setBudget}
-        salary={salary}
-        onSalaryChange={setSalary}
+        maxHomePrice={maxHomePrice}
+        onMaxHomePriceChange={setMaxHomePrice}
         commute={commute}
         onCommuteChange={setCommute}
         radius={radius}

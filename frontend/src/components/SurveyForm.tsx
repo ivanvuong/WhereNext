@@ -2,17 +2,20 @@ import type { HouseholdType } from '../api/analyze'
 import MetricSlider from './MetricSlider'
 import SearchIcon from './icons/SearchIcon'
 import { toTitle } from '../utils/format'
+import type { HousingMode } from '../types/app'
 
 const HOUSEHOLD_OPTIONS: HouseholdType[] = ['single', 'couple', 'family', 'with pets']
 
 const SurveyForm = ({
   isResults,
+  housingMode,
+  onHousingModeChange,
   anchorInput,
   onAnchorChange,
   budget,
   onBudgetChange,
-  salary,
-  onSalaryChange,
+  maxHomePrice,
+  onMaxHomePriceChange,
   commute,
   onCommuteChange,
   radius,
@@ -23,12 +26,14 @@ const SurveyForm = ({
   onLifestyleChange,
 }: {
   isResults: boolean
+  housingMode: HousingMode
+  onHousingModeChange: (value: HousingMode) => void
   anchorInput: string
   onAnchorChange: (value: string) => void
   budget: number
   onBudgetChange: (value: number) => void
-  salary: number
-  onSalaryChange: (value: number) => void
+  maxHomePrice: number
+  onMaxHomePriceChange: (value: number) => void
   commute: number
   onCommuteChange: (value: number) => void
   radius: number
@@ -42,6 +47,23 @@ const SurveyForm = ({
     className={`survey-form ${!isResults ? 'survey-form--landing' : ''}`}
     onSubmit={(event) => event.preventDefault()}
   >
+    <div className="mode-toggle" role="group" aria-label="Housing mode">
+      <button
+        type="button"
+        className={`mode-toggle__button ${housingMode === 'buy' ? 'mode-toggle__button--active' : ''}`}
+        onClick={() => onHousingModeChange('buy')}
+      >
+        BUY
+      </button>
+      <button
+        type="button"
+        className={`mode-toggle__button ${housingMode === 'rent' ? 'mode-toggle__button--active' : ''}`}
+        onClick={() => onHousingModeChange('rent')}
+      >
+        RENT
+      </button>
+    </div>
+
     <div className="field-group">
       <label htmlFor="anchor">Where will you work or study?</label>
       <div className="search-field">
@@ -59,27 +81,29 @@ const SurveyForm = ({
     </div>
 
     <div className={`slider-grid ${!isResults ? 'slider-grid--split' : ''}`}>
-      <MetricSlider
-        id="budget"
-        label="Monthly Rent Budget"
-        value={budget}
-        min={1200}
-        max={7000}
-        step={50}
-        suffix="$"
-        onChange={onBudgetChange}
-      />
-      <MetricSlider
-        id="salary"
-        label="Annual Salary"
-        value={salary}
-        min={35000}
-        max={350000}
-        step={1000}
-        suffix="$"
-        optional
-        onChange={onSalaryChange}
-      />
+      {housingMode === 'rent' ? (
+        <MetricSlider
+          id="budget"
+          label="Monthly Rent Budget"
+          value={budget}
+          min={1200}
+          max={7000}
+          step={50}
+          suffix="$"
+          onChange={onBudgetChange}
+        />
+      ) : (
+        <MetricSlider
+          id="max-home-price"
+          label="Total House Cost"
+          value={maxHomePrice}
+          min={200000}
+          max={5000000}
+          step={25000}
+          suffix="$"
+          onChange={onMaxHomePriceChange}
+        />
+      )}
     </div>
 
     <MetricSlider

@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 
 Region = Literal["sf", "irvine", "custom"]
 HouseholdType = Literal["single", "couple", "family", "with pets"]
+HousingMode = Literal["buy", "rent"]
 
 
 class LifestyleScore(BaseModel):
@@ -79,6 +80,8 @@ class PropertySearchRequest(BaseModel):
     commute_limit: int = Field(default=20, ge=1, le=120)
     radius: int = Field(default=15, ge=1, le=30)
     household: HouseholdType = "single"
+    housing_mode: HousingMode = "buy"
+    max_home_price: int | None = Field(default=None, ge=100_000, le=10_000_000)
     limit: int = Field(default=20, ge=1, le=40)
 
 

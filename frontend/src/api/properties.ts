@@ -1,4 +1,5 @@
 import type { HouseholdType } from './analyze'
+import type { HousingMode } from '../types/app'
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, '') || 'http://127.0.0.1:8000'
 
@@ -15,6 +16,8 @@ export type PropertySearchRequestPayload = {
   commute_limit: number
   radius: number
   household: HouseholdType
+  housing_mode: HousingMode
+  max_home_price?: number
   limit?: number
 }
 

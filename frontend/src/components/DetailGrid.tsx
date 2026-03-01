@@ -1,4 +1,5 @@
 import type { PropertyListing, RankedCommunity, ResolvedAnchor } from '../types/app'
+import { formatPropertyPrice } from '../utils/properties'
 
 const DetailGrid = ({
   selected,
@@ -101,7 +102,7 @@ const DetailGrid = ({
               <div className="property-item__body">
                 <h4>{home.address}</h4>
                 <p className="property-item__price">
-                  {home.listPrice ? `$${home.listPrice.toLocaleString()}` : 'Price unavailable'}
+                  {formatPropertyPrice(home)}
                 </p>
                 <p className="property-item__stats">
                   {home.beds ?? '-'} bd · {home.baths ?? '-'} ba · {home.sqft ? `${home.sqft.toLocaleString()} sqft` : 'sqft -'}
