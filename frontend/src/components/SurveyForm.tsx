@@ -47,7 +47,7 @@ const SurveyForm = ({
     className={`survey-form ${!isResults ? 'survey-form--landing' : ''}`}
     onSubmit={(event) => event.preventDefault()}
   >
-    <div className="mode-toggle" role="group" aria-label="Housing mode">
+    <div className={`mode-toggle mode-toggle--${housingMode}`} role="group" aria-label="Housing mode">
       <button
         type="button"
         className={`mode-toggle__button ${housingMode === 'buy' ? 'mode-toggle__button--active' : ''}`}

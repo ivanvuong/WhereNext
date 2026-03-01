@@ -7,7 +7,7 @@ import { analyzeCommunities, type HouseholdType } from './api/analyze'
 import { searchProperties } from './api/properties'
 import SurveyPanel from './components/SurveyPanel'
 import ResultsView from './components/ResultsView'
-import type { HousingMode, PropertyListing, RankedCommunity, ResolvedAnchor, TopCard } from './types/app'
+import type { HousingMode, PropertyListing, RankedCommunity, ResolvedAnchor } from './types/app'
 import { geocodeAnchor, resolveAnchor } from './utils/geo'
 import {
   buildReason,
@@ -321,14 +321,6 @@ function App() {
     isNeighborhoodFocused,
   ])
 
-  const topCard: TopCard | null = selected
-    ? {
-        homes: Math.max(8, Math.round(selected.overallScore / 6)),
-        estimate: selected.avgRent * 1420,
-        age: `${Math.max(4, Math.round(26 - selected.distanceMiles))}Y`,
-      }
-    : null
-
   const hasResults = results.length > 0
 
   useEffect(() => {
@@ -504,7 +496,6 @@ function App() {
               onSaveMapboxToken={handleSaveMapboxToken}
               mapContainerRef={mapContainerRef}
               selected={selected}
-              topCard={topCard}
               anchorLabel={activeAnchorLabel}
               anchor={anchor}
               results={results}

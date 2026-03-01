@@ -1,7 +1,6 @@
 import type { RefObject } from 'react'
-import type { PropertyListing, RankedCommunity, ResolvedAnchor, TopCard } from '../types/app'
+import type { PropertyListing, RankedCommunity, ResolvedAnchor } from '../types/app'
 import MapPanel from './MapPanel'
-import SummaryCards from './SummaryCards'
 import RecommendationList from './RecommendationList'
 import DetailGrid from './DetailGrid'
 import WorkspaceEmpty from './WorkspaceEmpty'
@@ -18,7 +17,6 @@ const ResultsView = ({
   onSaveMapboxToken,
   mapContainerRef,
   selected,
-  topCard,
   anchorLabel,
   anchor,
   results,
@@ -47,7 +45,6 @@ const ResultsView = ({
   onSaveMapboxToken: () => void
   mapContainerRef: RefObject<HTMLDivElement | null>
   selected: RankedCommunity | null
-  topCard: TopCard | null
   anchorLabel: string | null
   anchor: ResolvedAnchor
   results: RankedCommunity[]
@@ -72,7 +69,6 @@ const ResultsView = ({
       <WorkspaceEmpty hasSearched={hasSearched} isLoading={isLoading} onUpdateResults={onUpdateResults} />
     ) : (
       <div className="workspace-results">
-        {topCard ? <SummaryCards topCard={topCard} /> : null}
         <MapPanel
           mapboxToken={mapboxToken}
           mapboxTokenInput={mapboxTokenInput}
