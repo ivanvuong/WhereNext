@@ -1,5 +1,6 @@
 import type { RefObject } from 'react'
 import type { PropertyListing, RankedCommunity } from '../types/app'
+import type { HousingMode } from '../types/app'
 import { formatPropertyPrice } from '../utils/properties'
 import { formatCurrency } from '../utils/format'
 
@@ -13,6 +14,7 @@ const MapPanel = ({
   selectedOverview,
   selectedGood,
   selectedTradeoff,
+  housingMode,
   onCloseNeighborhood,
   selectedProperty,
   onClosePropertyDetail,
@@ -26,6 +28,7 @@ const MapPanel = ({
   selectedOverview: string
   selectedGood: string
   selectedTradeoff: string
+  housingMode: HousingMode
   onCloseNeighborhood: () => void
   selectedProperty: PropertyListing | null
   onClosePropertyDetail: () => void
@@ -69,7 +72,7 @@ const MapPanel = ({
           </div>
           <p className="map-neighborhood-overlay__meta">{selectedGood}</p>
           <p className="map-neighborhood-overlay__meta">{selectedTradeoff}</p>
-          <p className="map-neighborhood-overlay__rent">Avg rent {formatCurrency(selected.avgRent)}</p>
+          {housingMode === 'rent' ? <p className="map-neighborhood-overlay__rent">Avg rent {formatCurrency(selected.avgRent)}</p> : null}
         </aside>
       ) : null}
       {selectedProperty ? (

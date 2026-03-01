@@ -1,5 +1,6 @@
 import type { RefObject } from 'react'
 import type { PropertyListing, RankedCommunity } from '../types/app'
+import type { HousingMode } from '../types/app'
 import MapPanel from './MapPanel'
 import RecommendationList from './RecommendationList'
 import DetailGrid from './DetailGrid'
@@ -20,6 +21,7 @@ const ResultsView = ({
   selectedOverview,
   selectedGood,
   selectedTradeoff,
+  housingMode,
   results,
   selectedId,
   onSelect,
@@ -49,6 +51,7 @@ const ResultsView = ({
   selectedOverview: string
   selectedGood: string
   selectedTradeoff: string
+  housingMode: HousingMode
   results: RankedCommunity[]
   selectedId: string | null
   onSelect: (id: string) => void
@@ -81,6 +84,7 @@ const ResultsView = ({
           selectedOverview={selectedOverview}
           selectedGood={selectedGood}
           selectedTradeoff={selectedTradeoff}
+          housingMode={housingMode}
           onCloseNeighborhood={onCloseNeighborhood}
           selectedProperty={selectedProperty}
           onClosePropertyDetail={onClosePropertyDetail}

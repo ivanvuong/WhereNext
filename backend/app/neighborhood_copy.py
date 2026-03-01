@@ -15,7 +15,7 @@ def _truncate(value: str, limit: int) -> str:
     text = " ".join((value or "").split())
     if len(text) <= limit:
         return text
-    return text[: limit - 3].rstrip() + "..."
+    return text[:limit].rstrip()
 
 
 def _heuristic_copy(request: NeighborhoodCopyRequest) -> NeighborhoodCopyResponse:
@@ -74,7 +74,7 @@ async def generate_neighborhood_copy(request: NeighborhoodCopyRequest) -> Neighb
             {"role": "system", "content": "You return strict JSON for neighborhood recommendation copy."},
             {"role": "user", "content": _build_prompt(request)},
         ],
-        "temperature": 0.2,
+        "temperature": 0.0,
     }
     headers = {
         "Authorization": f"Bearer {api_key}",

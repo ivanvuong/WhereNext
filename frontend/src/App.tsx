@@ -24,6 +24,7 @@ const DEFAULT_ANCHOR = ''
 const DEFAULT_PREFS = ''
 const DEFAULT_RENT_SALARY = 80_000
 const AI_COPY_DEBOUNCE_MS = 450
+const AI_COPY_CACHE_KEY = 'wherenext:aiNeighborhoodCopyCache:v1'
 const NEIGHBORHOOD_RADIUS_SOURCE_ID = 'wherenext-neighborhood-radius-source'
 const NEIGHBORHOOD_RADIUS_FILL_LAYER_ID = 'wherenext-neighborhood-radius-fill'
 const NEIGHBORHOOD_RADIUS_LINE_LAYER_ID = 'wherenext-neighborhood-radius-line'
@@ -47,7 +48,7 @@ const buildNeighborhoodOverview = (selected: RankedCommunity | null): string => 
   const weakest = dimensions[2]
   const strength = second.value >= 72 && top.value - second.value <= 14 ? `${top.label} and ${second.label}` : top.label
   const sentence = `Strong ${strength}; watch for ${weakest.label}.`
-  return sentence.length <= 120 ? sentence : `${sentence.slice(0, 117).trimEnd()}...`
+  return sentence.length <= 120 ? sentence : sentence.slice(0, 120).trimEnd()
 }
 
 const serializeAiCopyKey = ({
@@ -192,6 +193,19 @@ function App() {
 
   useEffect(() => {
     window.localStorage.removeItem('wherenext:lastResults')
+  }, [])
+
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(AI_COPY_CACHE_KEY)
+      if (!raw) {
+        return
+      }
+      const parsed = JSON.parse(raw) as Array<[string, NeighborhoodCopy]>
+      aiCopyCache.current = new Map(parsed)
+    } catch {
+      aiCopyCache.current = new Map()
+    }
   }, [])
 
   const updateResults = async () => {
@@ -382,8 +396,18 @@ function App() {
             salary: salaryForAnalysis,
             commuteLimit: commute,
           })
-          aiCopyCache.current.set(cacheKey, copy)
-          setAiNeighborhoodCopy((previous) => ({ ...previous, [neighborhood.id]: copy }))
+          const cleanedCopy = {
+            overview: (copy.overview ?? '').replace(/\.\.\./g, '').trim(),
+            good: (copy.good ?? '').replace(/\.\.\./g, '').trim(),
+            tradeoff: (copy.tradeoff ?? '').replace(/\.\.\./g, '').trim(),
+          }
+          aiCopyCache.current.set(cacheKey, cleanedCopy)
+          try {
+            window.localStorage.setItem(AI_COPY_CACHE_KEY, JSON.stringify(Array.from(aiCopyCache.current.entries())))
+          } catch {
+            // Ignore cache persistence errors.
+          }
+          setAiNeighborhoodCopy((previous) => ({ ...previous, [neighborhood.id]: cleanedCopy }))
         } catch {
           // Fallback is handled by buildReason/buildTradeoff.
         }
@@ -804,6 +828,7 @@ function App() {
               selectedOverview={selectedCopy?.overview ?? selectedNeighborhoodOverview}
               selectedGood={selectedGood}
               selectedTradeoff={selectedTradeoff}
+              housingMode={housingMode}
               results={results}
               selectedId={selectedId}
               onSelect={handleNeighborhoodSelect}
