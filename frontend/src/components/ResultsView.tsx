@@ -1,8 +1,8 @@
 import type { RefObject } from 'react'
 import type { PropertyListing, RankedCommunity, ResolvedAnchor } from '../types/app'
 import MapPanel from './MapPanel'
-import RecommendationList from './RecommendationList'
 import DetailGrid from './DetailGrid'
+import RecommendationList from './RecommendationList'
 import WorkspaceEmpty from './WorkspaceEmpty'
 
 const ResultsView = ({
@@ -17,13 +17,16 @@ const ResultsView = ({
   onSaveMapboxToken,
   mapContainerRef,
   selected,
+  selectedOverview,
+  selectedGood,
+  selectedTradeoff,
   anchorLabel,
   anchor,
   results,
   selectedId,
-  onSelect,
-  buildReason,
-  buildTradeoff,
+  onSelectNeighborhood,
+  getReason,
+  getTradeoff,
   properties,
   isPropertiesLoading,
   propertyNotice,
@@ -45,13 +48,16 @@ const ResultsView = ({
   onSaveMapboxToken: () => void
   mapContainerRef: RefObject<HTMLDivElement | null>
   selected: RankedCommunity | null
+  selectedOverview: string
+  selectedGood: string
+  selectedTradeoff: string
   anchorLabel: string | null
   anchor: ResolvedAnchor
   results: RankedCommunity[]
   selectedId: string | null
-  onSelect: (id: string) => void
-  buildReason: (item: RankedCommunity) => string
-  buildTradeoff: (item: RankedCommunity) => string
+  onSelectNeighborhood: (id: string) => void
+  getReason: (item: RankedCommunity) => string
+  getTradeoff: (item: RankedCommunity) => string
   properties: PropertyListing[]
   isPropertiesLoading: boolean
   propertyNotice: string | null
@@ -75,32 +81,34 @@ const ResultsView = ({
           onMapboxTokenInput={onMapboxTokenInput}
           onSaveMapboxToken={onSaveMapboxToken}
           mapContainerRef={mapContainerRef}
+          selected={selected}
+          selectedOverview={selectedOverview}
+          selectedGood={selectedGood}
+          selectedTradeoff={selectedTradeoff}
+          onCloseNeighborhood={onCloseNeighborhood}
           selectedProperty={selectedProperty}
           onClosePropertyDetail={onClosePropertyDetail}
         />
-
         <RecommendationList
           results={results}
           selectedId={selectedId}
-          onSelect={onSelect}
-          buildReason={buildReason}
-          buildTradeoff={buildTradeoff}
+          onSelect={onSelectNeighborhood}
+          buildReason={getReason}
+          buildTradeoff={getTradeoff}
         />
 
-        {selected ? (
-          <DetailGrid
-            selected={selected}
-            anchorLabel={anchorLabel}
-            anchor={anchor}
-            properties={properties}
-            isPropertiesLoading={isPropertiesLoading}
-            propertyNotice={propertyNotice}
-            isNeighborhoodFocused={isNeighborhoodFocused}
-            onCloseNeighborhood={onCloseNeighborhood}
-            selectedPropertyId={selectedPropertyId}
-            onSelectProperty={onSelectProperty}
-          />
-        ) : null}
+        <DetailGrid
+          selected={selected}
+          anchorLabel={anchorLabel}
+          anchor={anchor}
+          properties={properties}
+          isPropertiesLoading={isPropertiesLoading}
+          propertyNotice={propertyNotice}
+          isNeighborhoodFocused={isNeighborhoodFocused}
+          onCloseNeighborhood={onCloseNeighborhood}
+          selectedPropertyId={selectedPropertyId}
+          onSelectProperty={onSelectProperty}
+        />
       </div>
     )}
   </section>

@@ -1,6 +1,5 @@
 import type { PropertyListing, RankedCommunity, ResolvedAnchor } from '../types/app'
 import { formatPropertyPrice } from '../utils/properties'
-import NeighborhoodSummary from '../features/neighborhood-summary/NeighborhoodSummary'
 
 const DetailGrid = ({
   selected,
@@ -14,7 +13,7 @@ const DetailGrid = ({
   selectedPropertyId,
   onSelectProperty,
 }: {
-  selected: RankedCommunity
+  selected: RankedCommunity | null
   anchorLabel: string | null
   anchor: ResolvedAnchor
   properties: PropertyListing[]
@@ -26,24 +25,14 @@ const DetailGrid = ({
   onSelectProperty: (id: string) => void
 }) => (
   <section className="detail-grid">
-    <article className="location-card">
-      <header>
-        <div>
-          <h3>Neighborhood</h3>
-          <NeighborhoodSummary neighborhood={selected.name} anchorLabel={anchorLabel ?? anchor.label} />
-        </div>
-      </header>
-
-    </article>
-
     <article className="property-card" aria-label="Homes in selected neighborhood">
       <div className="property-card__header">
         <div>
           <h3>Homes</h3>
           <p>
-            {isNeighborhoodFocused
-              ? `Showing homes in ${selected.name}.`
-              : 'Click a yellow neighborhood on the map or top choices to drill in.'}
+            {isNeighborhoodFocused && selected
+              ? `Showing homes in ${selected.name}, near ${anchorLabel ?? anchor.label}.`
+              : 'Select a neighborhood marker on the map to load matching homes.'}
           </p>
         </div>
         {isNeighborhoodFocused ? (
@@ -55,7 +44,7 @@ const DetailGrid = ({
 
       <div className="property-list">
         {!isNeighborhoodFocused ? (
-          <p className="property-meta">Neighborhood-level homes appear after selecting a neighborhood.</p>
+          <p className="property-meta">Listings appear after selecting a neighborhood on the map.</p>
         ) : null}
         {isNeighborhoodFocused && isPropertiesLoading ? <p className="property-meta">Loading homes...</p> : null}
         {isNeighborhoodFocused && !isPropertiesLoading && propertyNotice ? <p className="property-meta">{propertyNotice}</p> : null}
@@ -78,9 +67,7 @@ const DetailGrid = ({
               )}
               <div className="property-item__body">
                 <h4>{home.address}</h4>
-                <p className="property-item__price">
-                  {formatPropertyPrice(home)}
-                </p>
+                <p className="property-item__price">{formatPropertyPrice(home)}</p>
                 <p className="property-item__stats">
                   {home.beds ?? '-'} bd · {home.baths ?? '-'} ba · {home.sqft ? `${home.sqft.toLocaleString()} sqft` : 'sqft -'}
                   {home.estimatedCommuteMinutes !== null ? ` · ~${home.estimatedCommuteMinutes} min` : ''}

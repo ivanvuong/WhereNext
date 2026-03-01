@@ -4,6 +4,7 @@ import './App.css'
 import mapboxgl from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
 import { type HouseholdType } from './api/analyze'
+import { fetchNeighborhoodCopy, type NeighborhoodCopy } from './api/neighborhoodCopy'
 import { searchProperties } from './api/properties'
 import { getCommunitiesForRegion } from './data/communities'
 import SurveyPanel from './components/SurveyPanel'
@@ -22,6 +23,61 @@ import { toPropertyListing } from './utils/properties'
 const DEFAULT_ANCHOR = ''
 const DEFAULT_PREFS = ''
 const DEFAULT_RENT_SALARY = 80_000
+const AI_COPY_DEBOUNCE_MS = 450
+
+const buildNeighborhoodOverview = (selected: RankedCommunity | null): string => {
+  if (!selected) {
+    return ''
+  }
+
+  const dimensions = [
+    { key: 'commute', score: selected.commuteScore, good: 'short commute', bad: 'longer commute times' },
+    { key: 'cost', score: selected.affordabilityScore, good: 'solid affordability', bad: 'higher rent pressure' },
+    { key: 'lifestyle', score: selected.lifestyleScore, good: 'great lifestyle fit', bad: 'fewer lifestyle matches' },
+  ].sort((a, b) => b.score - a.score)
+
+  const top = dimensions[0]
+  const second = dimensions[1]
+  const weakest = dimensions[2]
+  const includeSecond = second.score >= 70 && top.score - second.score <= 12
+
+  const strengths = includeSecond ? `${top.good} and ${second.good}` : top.good
+  const tradeoff = weakest.score < 68 ? `; ${weakest.bad}.` : '.'
+  const summary = `${strengths}${tradeoff}`
+  return summary.length > 120 ? summary.slice(0, 117).trimEnd() + '...' : summary
+}
+
+const serializeAiCopyKey = ({
+  neighborhoodId,
+  neighborhood,
+  budget,
+  salary,
+  commute,
+  lifestyle,
+  household,
+  anchorLabel,
+}: {
+  neighborhoodId: string
+  neighborhood: RankedCommunity
+  budget: number
+  salary: number
+  commute: number
+  lifestyle: string
+  household: HouseholdType
+  anchorLabel: string
+}) =>
+  JSON.stringify({
+    neighborhoodId,
+    neighborhoodScore: [
+      neighborhood.overallScore,
+      neighborhood.commuteScore,
+      neighborhood.affordabilityScore,
+      neighborhood.lifestyleScore,
+      neighborhood.avgRent,
+      neighborhood.distanceMiles,
+    ],
+    inputs: { budget, salary, commute, lifestyle, household, anchorLabel },
+  })
 
 function App() {
   const mapContainerRef = useRef<HTMLDivElement | null>(null)
@@ -39,7 +95,7 @@ function App() {
   const [results, setResults] = useState<RankedCommunity[]>([])
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [selectedPropertyId, setSelectedPropertyId] = useState<string | null>(null)
-  const [isNeighborhoodFocused, setIsNeighborhoodFocused] = useState(false)
+  const [aiNeighborhoodCopy, setAiNeighborhoodCopy] = useState<Record<string, NeighborhoodCopy>>({})
   const [isLoading, setIsLoading] = useState(false)
   const [hasSearched, setHasSearched] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
@@ -56,18 +112,22 @@ function App() {
   })
   const [mapboxTokenInput, setMapboxTokenInput] = useState('')
   const updateTimer = useRef<number | null>(null)
+  const aiCopyTimer = useRef<number | null>(null)
+  const aiCopyCache = useRef<Map<string, NeighborhoodCopy>>(new Map())
   const navigate = useNavigate()
   const location = useLocation()
   const isResults = location.pathname === '/results'
 
   const selected = useMemo(
-    () => results.find((item) => item.id === selectedId) ?? results[0] ?? null,
+    () => results.find((item) => item.id === selectedId) ?? null,
     [results, selectedId],
   )
   const selectedProperty = useMemo(
     () => properties.find((item) => item.id === selectedPropertyId) ?? null,
     [properties, selectedPropertyId],
   )
+  const selectedNeighborhoodOverview = useMemo(() => buildNeighborhoodOverview(selected), [selected])
+  const selectedCopy = selected ? aiNeighborhoodCopy[selected.id] ?? null : null
 
   const anchor = useMemo(() => resolvedAnchor ?? resolveAnchor(anchorInput), [anchorInput, resolvedAnchor])
   const envMapboxToken = (import.meta.env.VITE_MAPBOX_TOKEN as string | undefined)?.trim()
@@ -75,6 +135,7 @@ function App() {
   const affordabilityInput = housingMode === 'buy' ? maxHomePrice : budget
   const salaryForAnalysis = housingMode === 'buy' ? Math.round(maxHomePrice / 12) : DEFAULT_RENT_SALARY
   const radiusSummaryLabel = `~${estimateCommuteMinutesFromMiles(radius)} min from anchor at ${radius} miles`
+  const isNeighborhoodFocused = selectedId !== null
 
   useEffect(() => {
     window.localStorage.removeItem('wherenext:lastResults')
@@ -109,9 +170,8 @@ function App() {
         })
 
         setResults(ranked)
-        setSelectedId(ranked[0]?.id ?? null)
+        setSelectedId(null)
         setSelectedPropertyId(null)
-        setIsNeighborhoodFocused(false)
         setProperties([])
         setPropertyNotice(null)
         setActiveAnchorLabel(anchorPayload.label)
@@ -144,9 +204,8 @@ function App() {
         })
 
         setResults(ranked)
-        setSelectedId(ranked[0]?.id ?? null)
+        setSelectedId(null)
         setSelectedPropertyId(null)
-        setIsNeighborhoodFocused(false)
         setProperties([])
         setPropertyNotice(null)
         setActiveAnchorLabel(anchorPayload.label)
@@ -175,9 +234,8 @@ function App() {
       })
 
       setResults(ranked)
-      setSelectedId(ranked[0]?.id ?? null)
+      setSelectedId(null)
       setSelectedPropertyId(null)
-      setIsNeighborhoodFocused(false)
       setProperties([])
       setPropertyNotice(null)
       setActiveAnchorLabel(fallbackAnchor.label)
@@ -194,11 +252,10 @@ function App() {
   const handleNeighborhoodSelect = (id: string) => {
     setSelectedId(id)
     setSelectedPropertyId(null)
-    setIsNeighborhoodFocused(true)
   }
 
   const handleCloseNeighborhood = () => {
-    setIsNeighborhoodFocused(false)
+    setSelectedId(null)
     setSelectedPropertyId(null)
     setProperties([])
     setPropertyNotice(null)
@@ -217,6 +274,76 @@ function App() {
     setRuntimeMapboxToken(cleaned)
     setMapboxTokenInput('')
   }
+
+  const getFallbackReason = (item: RankedCommunity) => buildReason(item)
+  const getFallbackTradeoff = (item: RankedCommunity) => buildTradeoff(item)
+  const getCommunityReason = (item: RankedCommunity) => aiNeighborhoodCopy[item.id]?.good ?? getFallbackReason(item)
+  const getCommunityTradeoff = (item: RankedCommunity) => aiNeighborhoodCopy[item.id]?.tradeoff ?? getFallbackTradeoff(item)
+
+  useEffect(() => {
+    if (!isResults || results.length === 0) {
+      return
+    }
+
+    if (aiCopyTimer.current) {
+      window.clearTimeout(aiCopyTimer.current)
+    }
+
+    aiCopyTimer.current = window.setTimeout(() => {
+      const topCommunities = results.slice(0, 8)
+      topCommunities.forEach(async (community) => {
+        const cacheKey = serializeAiCopyKey({
+          neighborhoodId: community.id,
+          neighborhood: community,
+          budget,
+          salary: salaryForAnalysis,
+          commute,
+          lifestyle,
+          household,
+          anchorLabel: activeAnchorLabel ?? anchor.label,
+        })
+
+        const cached = aiCopyCache.current.get(cacheKey)
+        if (cached) {
+          setAiNeighborhoodCopy((previous) => ({ ...previous, [community.id]: cached }))
+          return
+        }
+
+        try {
+          const copy = await fetchNeighborhoodCopy({
+            neighborhoodId: community.id,
+            neighborhood: community,
+            anchorLabel: activeAnchorLabel ?? anchor.label,
+            household,
+            lifestylePreferences: lifestyle,
+            budget,
+            salary: salaryForAnalysis,
+            commuteLimit: commute,
+          })
+          aiCopyCache.current.set(cacheKey, copy)
+          setAiNeighborhoodCopy((previous) => ({ ...previous, [community.id]: copy }))
+        } catch {
+          // Fallback text is computed by heuristics in UI getters.
+        }
+      })
+    }, AI_COPY_DEBOUNCE_MS)
+
+    return () => {
+      if (aiCopyTimer.current) {
+        window.clearTimeout(aiCopyTimer.current)
+      }
+    }
+  }, [
+    isResults,
+    results,
+    budget,
+    salaryForAnalysis,
+    commute,
+    lifestyle,
+    household,
+    anchor.label,
+    activeAnchorLabel,
+  ])
 
   useEffect(() => {
     if (!isResults) {
@@ -280,7 +407,7 @@ function App() {
           budget,
           salary: salaryForAnalysis,
           commute_limit: commute,
-          radius,
+          radius: Math.min(radius, 6),
           household,
           housing_mode: housingMode,
           max_home_price: housingMode === 'buy' ? maxHomePrice : undefined,
@@ -305,12 +432,7 @@ function App() {
         })
 
         setProperties(mapped)
-        setSelectedPropertyId((previous) => {
-          if (previous && mapped.some((home) => home.id === previous)) {
-            return previous
-          }
-          return mapped[0]?.id ?? null
-        })
+        setSelectedPropertyId(null)
         if (mapped.length === 0) {
           setPropertyNotice('No matching homes found for this neighborhood and filter mix.')
         }
@@ -418,10 +540,7 @@ function App() {
     markerRefs.current.push(anchorMarker)
     bounds.extend([anchor.longitude, anchor.latitude])
 
-    const visibleNeighborhoods =
-      isNeighborhoodFocused && selected ? results.filter((result) => result.id === selected.id) : results
-
-    visibleNeighborhoods.forEach((result) => {
+    results.forEach((result) => {
       const el = document.createElement('button')
       el.type = 'button'
       el.className = `mapbox-marker ${selected?.id === result.id ? 'mapbox-marker--active' : ''}`
@@ -470,13 +589,7 @@ function App() {
     })
 
     if (isNeighborhoodFocused && selected) {
-      if (selectedProperty && selectedProperty.latitude !== null && selectedProperty.longitude !== null) {
-        map.flyTo({
-          center: [selectedProperty.longitude, selectedProperty.latitude],
-          zoom: 15.3,
-          speed: 0.85,
-        })
-      } else if (!homeBounds.isEmpty()) {
+      if (!homeBounds.isEmpty()) {
         homeBounds.extend([selected.longitude, selected.latitude])
         map.fitBounds(homeBounds, { padding: 90, duration: 700, maxZoom: 14.2 })
       } else {
@@ -507,7 +620,6 @@ function App() {
     isNeighborhoodFocused,
     properties,
     selectedPropertyId,
-    selectedProperty,
   ])
 
   return (
@@ -550,13 +662,16 @@ function App() {
               onSaveMapboxToken={handleSaveMapboxToken}
               mapContainerRef={mapContainerRef}
               selected={selected}
+              selectedOverview={selectedCopy?.overview ?? selectedNeighborhoodOverview}
+              selectedGood={selectedCopy?.good ?? (selected ? getCommunityReason(selected) : '')}
+              selectedTradeoff={selectedCopy?.tradeoff ?? (selected ? getCommunityTradeoff(selected) : '')}
               anchorLabel={activeAnchorLabel}
               anchor={anchor}
               results={results}
               selectedId={selectedId}
-              onSelect={handleNeighborhoodSelect}
-              buildReason={buildReason}
-              buildTradeoff={buildTradeoff}
+              onSelectNeighborhood={handleNeighborhoodSelect}
+              getReason={getCommunityReason}
+              getTradeoff={getCommunityTradeoff}
               properties={properties}
               isPropertiesLoading={isPropertiesLoading}
               propertyNotice={propertyNotice}

@@ -3,8 +3,13 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException
 import httpx
 
-from .schemas import NeighborhoodSummaryRequest, NeighborhoodSummaryResponse
-from .service import generate_neighborhood_summary
+from .schemas import (
+    NeighborhoodCopyRequest,
+    NeighborhoodCopyResponse,
+    NeighborhoodSummaryRequest,
+    NeighborhoodSummaryResponse,
+)
+from .service import generate_neighborhood_copy, generate_neighborhood_summary
 
 router = APIRouter(prefix="/neighborhood", tags=["neighborhood"])
 
@@ -19,3 +24,11 @@ async def neighborhood_summary(request: NeighborhoodSummaryRequest) -> Neighborh
         raise HTTPException(status_code=exc.response.status_code, detail=exc.response.text) from exc
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Neighborhood summary failed: {exc}") from exc
+
+
+@router.post("/copy", response_model=NeighborhoodCopyResponse)
+async def neighborhood_copy(request: NeighborhoodCopyRequest) -> NeighborhoodCopyResponse:
+    try:
+        return await generate_neighborhood_copy(request)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Neighborhood copy failed: {exc}") from exc

@@ -758,6 +758,85 @@ textarea::placeholder {
   cursor: pointer;
 }
 
+.map-neighborhood-overlay {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  z-index: 3;
+  max-width: 304px;
+  padding: 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  background: rgba(248, 251, 255, 0.76);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 10px 24px rgba(15, 22, 41, 0.16);
+  pointer-events: auto;
+}
+
+.map-neighborhood-overlay h3 {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: 1.08rem;
+  letter-spacing: -0.01em;
+  color: #12203c;
+}
+
+.map-neighborhood-overlay__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.map-neighborhood-overlay__close {
+  width: 24px;
+  height: 24px;
+  border: 1px solid rgba(18, 32, 60, 0.2);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.75);
+  color: #22324f;
+  cursor: pointer;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.map-neighborhood-overlay p {
+  margin: 6px 0 0;
+  color: #3a4966;
+  font-size: 0.92rem;
+  line-height: 1.35;
+}
+
+.map-neighborhood-overlay__chips {
+  margin-top: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.map-neighborhood-overlay__chips span {
+  border-radius: 999px;
+  border: 1px solid rgba(18, 32, 60, 0.14);
+  background: rgba(255, 255, 255, 0.76);
+  color: #2f3e5a;
+  font-size: 0.74rem;
+  font-weight: 620;
+  padding: 2px 8px;
+}
+
+.map-neighborhood-overlay__meta {
+  margin-top: 7px;
+  color: #415274;
+  font-size: 0.82rem;
+}
+
+.map-neighborhood-overlay__rent {
+  margin-top: 8px;
+  color: #23334f;
+  font-size: 0.82rem;
+  font-weight: 650;
+}
+
 .map-property-detail {
   position: absolute;
   right: 14px;
@@ -934,145 +1013,17 @@ textarea::placeholder {
 }
 
 .detail-grid {
-  display: grid;
-  grid-template-columns: 1.1fr 1.9fr;
-  gap: 12px;
+  margin-top: 12px;
 }
 
-.location-card,
 .property-card {
-  border-radius: 22px;
-  background: rgba(255, 255, 255, 0.8);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.86);
   border: 1px solid #dde1e7;
   overflow: hidden;
-}
-
-.location-card {
-  padding: 18px;
-}
-
-.location-card header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 12px;
-}
-
-.location-card h3 {
-  margin: 0;
-  font-family: var(--font-heading);
-  font-size: 2rem;
-  line-height: 1;
-  letter-spacing: -0.03em;
-}
-
-.location-card p {
-  margin: 8px 0 0;
-  color: #525f78;
-  font-size: 1.06rem;
-}
-
-.code-line {
-  color: #8893a8;
-}
-
-.neighborhood-summary {
-  margin-top: 10px;
-  border: 1px solid #dde3ed;
-  border-radius: 14px;
-  background: #f8fafc;
-  padding: 10px 12px;
-}
-
-.neighborhood-summary h4 {
-  margin: 0;
-  font-size: 0.95rem;
-  color: #2f3b54;
-}
-
-.neighborhood-summary__title {
-  margin: 8px 0 0;
-  font-size: 0.9rem;
-  color: #4f5e7c;
-  font-weight: 620;
-}
-
-.neighborhood-summary__meta {
-  margin: 8px 0 0;
-  font-size: 0.9rem;
-  color: #5f6f8c;
-}
-
-.neighborhood-summary ul {
-  margin: 8px 0 0;
-  padding-left: 18px;
-  display: grid;
-  gap: 4px;
-}
-
-.neighborhood-summary li {
-  color: #4c5b79;
-  font-size: 0.9rem;
-  line-height: 1.35;
-}
-
-.score-strip {
-  margin-top: 10px;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.score-strip span {
-  border-radius: 999px;
-  background: #f2f5fa;
-  border: 1px solid #dde3ed;
-  color: #47546f;
-  font-size: 0.84rem;
-  font-weight: 620;
-  padding: 4px 9px;
-}
-
-.heart {
-  color: #e6aa12;
-  font-size: 1.2rem;
-}
-
-.stat-row {
-  margin-top: 16px;
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
-}
-
-.stat-box {
-  border-radius: 14px;
-  background: #edf2f2;
-  border: 1px solid #dde4e5;
-  padding: 16px 14px 12px;
-  min-height: 130px;
   display: flex;
   flex-direction: column;
-  justify-content: flex-end;
-  gap: 8px;
-}
-
-.stat-box span {
-  font-size: 0.95rem;
-  color: #6c778d;
-}
-
-.stat-box strong {
-  font-family: var(--font-heading);
-  font-size: 3rem;
-  line-height: 1;
-  letter-spacing: -0.03em;
-}
-
-.property-card {
-  display: flex;
-  flex-direction: column;
-  min-height: 520px;
+  min-height: 380px;
 }
 
 .property-card__header {
