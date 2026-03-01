@@ -3,7 +3,8 @@ import { Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import './App.css'
 import mapboxgl from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
-import { type HouseholdType } from './api/analyze'
+import { type HouseholdType, type Region } from './api/analyze'
+import { fetchNeighborhoodCopy, type NeighborhoodCopy } from './api/neighborhoodCopy'
 import { searchProperties } from './api/properties'
 import { getCommunitiesForRegion } from './data/communities'
 import SurveyPanel from './components/SurveyPanel'
@@ -22,13 +23,70 @@ import { toPropertyListing } from './utils/properties'
 const DEFAULT_ANCHOR = ''
 const DEFAULT_PREFS = ''
 const DEFAULT_RENT_SALARY = 80_000
-const HOMES_API_PAUSED = true
+const AI_COPY_DEBOUNCE_MS = 450
 const NEIGHBORHOOD_RADIUS_SOURCE_ID = 'wherenext-neighborhood-radius-source'
 const NEIGHBORHOOD_RADIUS_FILL_LAYER_ID = 'wherenext-neighborhood-radius-fill'
 const NEIGHBORHOOD_RADIUS_LINE_LAYER_ID = 'wherenext-neighborhood-radius-line'
 
 const isLocalRegion = (region: RankedCommunity['region'] | ResolvedAnchor['region']) =>
   region === 'sf' || region === 'seattle' || region === 'irvine' || region === 'la' || region === 'nyc'
+
+const buildNeighborhoodOverview = (selected: RankedCommunity | null): string => {
+  if (!selected) {
+    return ''
+  }
+
+  const dimensions = [
+    { key: 'commute', label: 'commute', value: selected.commuteScore },
+    { key: 'cost', label: 'budget fit', value: selected.affordabilityScore },
+    { key: 'lifestyle', label: 'lifestyle fit', value: selected.lifestyleScore },
+  ].sort((a, b) => b.value - a.value)
+
+  const top = dimensions[0]
+  const second = dimensions[1]
+  const weakest = dimensions[2]
+  const strength = second.value >= 72 && top.value - second.value <= 14 ? `${top.label} and ${second.label}` : top.label
+  const sentence = `Strong ${strength}; watch for ${weakest.label}.`
+  return sentence.length <= 120 ? sentence : `${sentence.slice(0, 117).trimEnd()}...`
+}
+
+const serializeAiCopyKey = ({
+  neighborhood,
+  budget,
+  salary,
+  commuteLimit,
+  lifestyle,
+  household,
+  anchorLabel,
+  anchorRegion,
+}: {
+  neighborhood: RankedCommunity
+  budget: number
+  salary: number
+  commuteLimit: number
+  lifestyle: string
+  household: HouseholdType
+  anchorLabel: string
+  anchorRegion: Region
+}) =>
+  JSON.stringify({
+    neighborhoodId: neighborhood.id,
+    budget,
+    salary,
+    commuteLimit,
+    lifestyle,
+    household,
+    anchorLabel,
+    anchorRegion,
+    scores: [
+      neighborhood.commuteScore,
+      neighborhood.affordabilityScore,
+      neighborhood.lifestyleScore,
+      neighborhood.overallScore,
+      neighborhood.avgRent,
+      neighborhood.distanceMiles,
+    ],
+  })
 
 const buildCircleRing = (latitude: number, longitude: number, radiusMiles: number): [number, number][] => {
   const points = 56
@@ -90,6 +148,7 @@ function App() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [selectedPropertyId, setSelectedPropertyId] = useState<string | null>(null)
   const [isNeighborhoodFocused, setIsNeighborhoodFocused] = useState(false)
+  const [aiNeighborhoodCopy, setAiNeighborhoodCopy] = useState<Record<string, NeighborhoodCopy>>({})
   const [isLoading, setIsLoading] = useState(false)
   const [hasSearched, setHasSearched] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
@@ -106,12 +165,14 @@ function App() {
   })
   const [mapboxTokenInput, setMapboxTokenInput] = useState('')
   const updateTimer = useRef<number | null>(null)
+  const aiCopyTimer = useRef<number | null>(null)
+  const aiCopyCache = useRef<Map<string, NeighborhoodCopy>>(new Map())
   const navigate = useNavigate()
   const location = useLocation()
   const isResults = location.pathname === '/results'
 
   const selected = useMemo(
-    () => results.find((item) => item.id === selectedId) ?? results[0] ?? null,
+    () => results.find((item) => item.id === selectedId) ?? null,
     [results, selectedId],
   )
   const selectedProperty = useMemo(
@@ -125,6 +186,10 @@ function App() {
   const affordabilityInput = housingMode === 'buy' ? maxHomePrice : budget
   const salaryForAnalysis = housingMode === 'buy' ? Math.round(maxHomePrice / 12) : DEFAULT_RENT_SALARY
   const radiusSummaryLabel = `~${estimateCommuteMinutesFromMiles(radius)} min from anchor at ${radius} miles`
+  const selectedNeighborhoodOverview = useMemo(() => buildNeighborhoodOverview(selected), [selected])
+  const selectedCopy = selected ? aiNeighborhoodCopy[selected.id] ?? null : null
+  const selectedGood = selected ? (selectedCopy?.good ?? buildReason(selected)) : ''
+  const selectedTradeoff = selected ? (selectedCopy?.tradeoff ?? buildTradeoff(selected)) : ''
 
   useEffect(() => {
     window.localStorage.removeItem('wherenext:lastResults')
@@ -251,6 +316,7 @@ function App() {
 
   const handleCloseNeighborhood = () => {
     setIsNeighborhoodFocused(false)
+    setSelectedId(null)
     setSelectedPropertyId(null)
     setProperties([])
     setPropertyNotice(null)
@@ -269,6 +335,79 @@ function App() {
     setRuntimeMapboxToken(cleaned)
     setMapboxTokenInput('')
   }
+
+  const getCommunityReason = (community: RankedCommunity) =>
+    aiNeighborhoodCopy[community.id]?.good ?? buildReason(community)
+
+  const getCommunityTradeoff = (community: RankedCommunity) =>
+    aiNeighborhoodCopy[community.id]?.tradeoff ?? buildTradeoff(community)
+
+  useEffect(() => {
+    if (!isResults || results.length === 0) {
+      return
+    }
+
+    if (aiCopyTimer.current) {
+      window.clearTimeout(aiCopyTimer.current)
+    }
+
+    aiCopyTimer.current = window.setTimeout(() => {
+      const targetNeighborhoods = results.slice(0, 10)
+      targetNeighborhoods.forEach(async (neighborhood) => {
+        const cacheKey = serializeAiCopyKey({
+          neighborhood,
+          budget,
+          salary: salaryForAnalysis,
+          commuteLimit: commute,
+          lifestyle,
+          household,
+          anchorLabel: activeAnchorLabel ?? anchor.label,
+          anchorRegion: anchor.region,
+        })
+
+        const cached = aiCopyCache.current.get(cacheKey)
+        if (cached) {
+          setAiNeighborhoodCopy((previous) => ({ ...previous, [neighborhood.id]: cached }))
+          return
+        }
+
+        try {
+          const copy = await fetchNeighborhoodCopy({
+            neighborhoodId: neighborhood.id,
+            neighborhood,
+            anchorLabel: activeAnchorLabel ?? anchor.label,
+            anchorRegion: anchor.region,
+            household,
+            lifestylePreferences: lifestyle,
+            budget,
+            salary: salaryForAnalysis,
+            commuteLimit: commute,
+          })
+          aiCopyCache.current.set(cacheKey, copy)
+          setAiNeighborhoodCopy((previous) => ({ ...previous, [neighborhood.id]: copy }))
+        } catch {
+          // Fallback is handled by buildReason/buildTradeoff.
+        }
+      })
+    }, AI_COPY_DEBOUNCE_MS)
+
+    return () => {
+      if (aiCopyTimer.current) {
+        window.clearTimeout(aiCopyTimer.current)
+      }
+    }
+  }, [
+    isResults,
+    results,
+    budget,
+    salaryForAnalysis,
+    commute,
+    lifestyle,
+    household,
+    activeAnchorLabel,
+    anchor.label,
+    anchor.region,
+  ])
 
   useEffect(() => {
     if (!isResults) {
@@ -298,14 +437,6 @@ function App() {
     if (!isResults || !selected || !isNeighborhoodFocused) {
       setProperties([])
       setPropertyNotice(null)
-      setIsPropertiesLoading(false)
-      return
-    }
-
-    if (HOMES_API_PAUSED) {
-      setProperties([])
-      setSelectedPropertyId(null)
-      setPropertyNotice('Homes API is paused. Placeholder mode is active.')
       setIsPropertiesLoading(false)
       return
     }
@@ -672,13 +803,14 @@ function App() {
               onSaveMapboxToken={handleSaveMapboxToken}
               mapContainerRef={mapContainerRef}
               selected={selected}
-              anchorLabel={activeAnchorLabel}
-              anchor={anchor}
+              selectedOverview={selectedCopy?.overview ?? selectedNeighborhoodOverview}
+              selectedGood={selectedGood}
+              selectedTradeoff={selectedTradeoff}
               results={results}
               selectedId={selectedId}
               onSelect={handleNeighborhoodSelect}
-              buildReason={buildReason}
-              buildTradeoff={buildTradeoff}
+              buildReason={getCommunityReason}
+              buildTradeoff={getCommunityTradeoff}
               properties={properties}
               isPropertiesLoading={isPropertiesLoading}
               propertyNotice={propertyNotice}

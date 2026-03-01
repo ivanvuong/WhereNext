@@ -661,6 +661,82 @@ textarea::placeholder {
   background: #0d1933;
 }
 
+.map-neighborhood-overlay {
+  position: absolute;
+  left: 14px;
+  top: 14px;
+  z-index: 2;
+  width: min(320px, calc(100% - 28px));
+  border: 1px solid #ccd7e8;
+  border-radius: 14px;
+  padding: 12px;
+  background: rgba(248, 251, 255, 0.76);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 10px 24px rgba(15, 22, 41, 0.16);
+  pointer-events: auto;
+}
+
+.map-neighborhood-overlay h3 {
+  margin: 0;
+  color: #12203c;
+  font-size: 1.15rem;
+}
+
+.map-neighborhood-overlay__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.map-neighborhood-overlay__close {
+  width: 24px;
+  height: 24px;
+  border: 1px solid rgba(18, 32, 60, 0.2);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.75);
+  color: #22324f;
+  cursor: pointer;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.map-neighborhood-overlay p {
+  margin: 6px 0 0;
+  color: #3a4966;
+  line-height: 1.35;
+}
+
+.map-neighborhood-overlay__chips {
+  margin-top: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.map-neighborhood-overlay__chips span {
+  border-radius: 999px;
+  border: 1px solid rgba(18, 32, 60, 0.14);
+  background: rgba(255, 255, 255, 0.76);
+  color: #2f3e5a;
+  font-size: 0.74rem;
+  font-weight: 620;
+  padding: 2px 8px;
+}
+
+.map-neighborhood-overlay__meta {
+  margin-top: 7px;
+  color: #415274;
+  font-size: 0.82rem;
+}
+
+.map-neighborhood-overlay__rent {
+  margin-top: 8px;
+  color: #23334f;
+  font-size: 0.82rem;
+  font-weight: 650;
+}
+
 .mapbox-home-marker {
   width: 26px;
   height: 26px;
@@ -963,7 +1039,7 @@ textarea::placeholder {
 
 .detail-grid {
   display: grid;
-  grid-template-columns: 1.1fr 1.9fr;
+  grid-template-columns: 1fr;
   gap: 12px;
 }
 

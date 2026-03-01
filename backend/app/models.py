@@ -103,3 +103,27 @@ class PropertySearchResponse(BaseModel):
     neighborhood: str
     total: int
     listings: list[PropertyListing]
+
+
+class NeighborhoodCopyRequest(BaseModel):
+    neighborhood_id: str = Field(min_length=1)
+    neighborhood: str = Field(min_length=1)
+    anchor_label: str | None = None
+    anchor_region: Region | None = None
+    household: HouseholdType
+    lifestyle_preferences: str | None = None
+    budget: int = Field(ge=600, le=12000)
+    salary: int = Field(ge=0, le=2_000_000)
+    commute_limit: int = Field(ge=1, le=120)
+    avg_rent: int = Field(ge=0, le=50_000)
+    distance_miles: float = Field(ge=0, le=1000)
+    overall_score: float = Field(ge=0, le=100)
+    commute_score: float = Field(ge=0, le=100)
+    affordability_score: float = Field(ge=0, le=100)
+    lifestyle_score: float = Field(ge=0, le=100)
+
+
+class NeighborhoodCopyResponse(BaseModel):
+    overview: str = Field(max_length=140)
+    good: str = Field(max_length=120)
+    tradeoff: str = Field(max_length=120)

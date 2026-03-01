@@ -7,7 +7,15 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from .engine import score
-from .models import AnalyzeRequest, AnalyzeResponse, PropertySearchRequest, PropertySearchResponse
+from .models import (
+    AnalyzeRequest,
+    AnalyzeResponse,
+    NeighborhoodCopyRequest,
+    NeighborhoodCopyResponse,
+    PropertySearchRequest,
+    PropertySearchResponse,
+)
+from .neighborhood_copy import generate_neighborhood_copy
 from .realty import fetch_property_listings
 
 def _load_local_env() -> None:
@@ -74,3 +82,11 @@ async def search_properties(request: PropertySearchRequest) -> PropertySearchRes
         total=len(listings),
         listings=listings,
     )
+
+
+@app.post('/neighborhood/copy', response_model=NeighborhoodCopyResponse)
+async def neighborhood_copy(request: NeighborhoodCopyRequest) -> NeighborhoodCopyResponse:
+    try:
+        return await generate_neighborhood_copy(request)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Neighborhood copy failed: {exc}") from exc

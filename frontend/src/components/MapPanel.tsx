@@ -1,6 +1,7 @@
 import type { RefObject } from 'react'
-import type { PropertyListing } from '../types/app'
+import type { PropertyListing, RankedCommunity } from '../types/app'
 import { formatPropertyPrice } from '../utils/properties'
+import { formatCurrency } from '../utils/format'
 
 const MapPanel = ({
   mapboxToken,
@@ -8,6 +9,11 @@ const MapPanel = ({
   onMapboxTokenInput,
   onSaveMapboxToken,
   mapContainerRef,
+  selected,
+  selectedOverview,
+  selectedGood,
+  selectedTradeoff,
+  onCloseNeighborhood,
   selectedProperty,
   onClosePropertyDetail,
 }: {
@@ -16,6 +22,11 @@ const MapPanel = ({
   onMapboxTokenInput: (value: string) => void
   onSaveMapboxToken: () => void
   mapContainerRef: RefObject<HTMLDivElement | null>
+  selected: RankedCommunity | null
+  selectedOverview: string
+  selectedGood: string
+  selectedTradeoff: string
+  onCloseNeighborhood: () => void
   selectedProperty: PropertyListing | null
   onClosePropertyDetail: () => void
 }) => (
@@ -41,6 +52,26 @@ const MapPanel = ({
       ) : (
         <div className="mapbox-container" ref={mapContainerRef} />
       )}
+      {selected ? (
+        <aside className="map-neighborhood-overlay" aria-live="polite">
+          <div className="map-neighborhood-overlay__head">
+            <h3>{selected.name}</h3>
+            <button type="button" className="map-neighborhood-overlay__close" onClick={onCloseNeighborhood} aria-label="Close neighborhood">
+              X
+            </button>
+          </div>
+          <p>{selectedOverview}</p>
+          <div className="map-neighborhood-overlay__chips">
+            <span>Match {Math.round(selected.overallScore)}</span>
+            <span>Commute {Math.round(selected.commuteScore)}</span>
+            <span>Cost {Math.round(selected.affordabilityScore)}</span>
+            <span>Lifestyle {Math.round(selected.lifestyleScore)}</span>
+          </div>
+          <p className="map-neighborhood-overlay__meta">{selectedGood}</p>
+          <p className="map-neighborhood-overlay__meta">{selectedTradeoff}</p>
+          <p className="map-neighborhood-overlay__rent">Avg rent {formatCurrency(selected.avgRent)}</p>
+        </aside>
+      ) : null}
       {selectedProperty ? (
         <div className="map-property-detail">
           <div className="map-property-detail__header">
