@@ -7,6 +7,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from .engine import score
+from .features.neighborhood_summary.router import router as neighborhood_router
 from .models import AnalyzeRequest, AnalyzeResponse, PropertySearchRequest, PropertySearchResponse
 from .realty import fetch_property_listings
 
@@ -29,6 +30,7 @@ def _load_local_env() -> None:
 _load_local_env()
 
 app = FastAPI(title="WhereNext API", version="0.1.0")
+app.include_router(neighborhood_router)
 
 raw_origins = os.getenv("CORS_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173")
 allowed_origins = [origin.strip() for origin in raw_origins.split(",") if origin.strip()]

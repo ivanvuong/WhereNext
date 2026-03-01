@@ -6,6 +6,10 @@ from typing import Any
 import httpx
 
 from .models import PropertyListing, PropertySearchRequest
+from .features.lifestyle_matching.mistral import extract_preference_tags
+from .features.lifestyle_matching.foursquare import fetch_places
+from .features.lifestyle_matching.scoring import score_listing
+from .features.lifestyle_matching.tags import TAG_DISTANCE_MILES
 from .services.geo import haversine_miles
 
 RAPIDAPI_HOST = "realty-in-us.p.rapidapi.com"
@@ -93,6 +97,36 @@ def _within_slider_constraints(payload: PropertySearchRequest, listing: Property
 
     estimated_commute = distance_to_anchor * 3.4 + 5
     return estimated_commute <= payload.commute_limit
+
+
+def _price_match_score(payload: PropertySearchRequest, listing: PropertyListing) -> float:
+    if listing.list_price is None:
+        return 0.5
+    if payload.housing_mode == "rent":
+        target = max(600, payload.budget)
+        diff = abs(listing.list_price - target)
+        return max(0.0, 1.0 - (diff / target))
+    target = _derive_price_ceiling(payload)
+    diff = abs(listing.list_price - target)
+    return max(0.0, 1.0 - (diff / target))
+
+
+def _neighborhood_distance_score(payload: PropertySearchRequest, listing: PropertyListing) -> float:
+    if (
+        listing.latitude is None
+        or listing.longitude is None
+        or payload.neighborhood_latitude is None
+        or payload.neighborhood_longitude is None
+    ):
+        return 0.0
+    radius = _derive_neighborhood_radius(payload) * 1.5
+    distance = haversine_miles(
+        payload.neighborhood_latitude,
+        payload.neighborhood_longitude,
+        listing.latitude,
+        listing.longitude,
+    )
+    return max(0.0, 1.0 - (distance / max(radius, 0.75)))
 
 
 def _extract_listing(raw: dict[str, Any]) -> PropertyListing | None:
@@ -190,6 +224,12 @@ async def fetch_property_listings(payload: PropertySearchRequest) -> list[Proper
     )
 
     listings: list[PropertyListing] = []
+    should_score = bool(
+        payload.lifestyle_preferences
+        and payload.neighborhood_latitude
+        and payload.neighborhood_longitude
+    )
+    max_results = payload.limit * 3 if should_score else payload.limit
     for raw in raw_listings:
         if not isinstance(raw, dict):
             continue
@@ -197,7 +237,34 @@ async def fetch_property_listings(payload: PropertySearchRequest) -> list[Proper
         if parsed is not None:
             if _status_matches_mode(payload, parsed) and _within_slider_constraints(payload, parsed):
                 listings.append(parsed)
-        if len(listings) >= payload.limit:
+        if len(listings) >= max_results:
             break
+
+    if should_score:
+        try:
+            tags = await extract_preference_tags(payload.lifestyle_preferences)
+        except Exception:
+            tags = []
+        if tags:
+            tag_places: dict[str, list] = {}
+            for tag in tags:
+                try:
+                    tag_places[tag] = await fetch_places(tag, payload.neighborhood_latitude, payload.neighborhood_longitude)
+                except Exception:
+                    tag_places[tag] = []
+
+            scored: list[tuple[float, PropertyListing]] = []
+            for listing in listings:
+                scores = score_listing(listing.latitude, listing.longitude, tag_places)
+                tag_score = sum(item.score for item in scores) / max(len(scores), 1)
+                price_score = _price_match_score(payload, listing)
+                proximity_score = _neighborhood_distance_score(payload, listing)
+                # Weight lifestyle highest, then proximity, then price fit.
+                total = (tag_score * 0.55) + (proximity_score * 0.3) + (price_score * 0.15)
+                scored.append((total, listing))
+
+            scored.sort(key=lambda item: item[0], reverse=True)
+            ranked = [item[1] for item in scored if item[0] > 0 or not TAG_DISTANCE_MILES]
+            listings = (ranked or listings)[: payload.limit]
 
     return listings

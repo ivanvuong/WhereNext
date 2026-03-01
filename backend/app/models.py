@@ -83,6 +83,7 @@ class PropertySearchRequest(BaseModel):
     housing_mode: HousingMode = "buy"
     max_home_price: int | None = Field(default=None, ge=100_000, le=10_000_000)
     limit: int = Field(default=20, ge=1, le=40)
+    lifestyle_preferences: str | None = None
 
 
 class PropertyListing(BaseModel):

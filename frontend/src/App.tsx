@@ -284,6 +284,7 @@ function App() {
           household,
           housing_mode: housingMode,
           max_home_price: housingMode === 'buy' ? maxHomePrice : undefined,
+          lifestyle_preferences: lifestyle,
           limit: 20,
         })
         if (cancelled) {
@@ -339,6 +340,7 @@ function App() {
     household,
     commute,
     radius,
+    lifestyle,
     anchor.latitude,
     anchor.longitude,
     isNeighborhoodFocused,
