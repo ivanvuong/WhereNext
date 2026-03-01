@@ -9,12 +9,14 @@ const RecommendationList = ({
   onSelect,
   buildReason,
   buildTradeoff,
+  isCopyLoading,
 }: {
   results: RankedCommunity[]
   selectedId: string | null
   onSelect: (id: string) => void
   buildReason: (item: RankedCommunity) => string
   buildTradeoff: (item: RankedCommunity) => string
+  isCopyLoading: (item: RankedCommunity) => boolean
 }) => {
   const pages: RankedCommunity[][] = []
   for (let index = 0; index < results.length; index += PAGE_SIZE) {
@@ -35,8 +37,17 @@ const RecommendationList = ({
               <div>
                 <h4>{result.name}</h4>
                 <p className="recommendation-commute">~{estimateCommuteMinutesFromMiles(result.distanceMiles)} min from anchor</p>
-                <p>{buildReason(result)}</p>
-                <p className="recommendation-tradeoff">{buildTradeoff(result)}</p>
+                {isCopyLoading(result) ? (
+                  <div className="copy-skeleton copy-skeleton--list" aria-hidden>
+                    <span />
+                    <span />
+                  </div>
+                ) : (
+                  <>
+                    <p>{buildReason(result)}</p>
+                    <p className="recommendation-tradeoff">{buildTradeoff(result)}</p>
+                  </>
+                )}
               </div>
               <strong>{Math.round(result.overallScore)}</strong>
             </button>

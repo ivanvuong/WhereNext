@@ -16,7 +16,7 @@ import {
   haversineMiles,
   resolveAnchor,
 } from './utils/geo'
-import { buildReason, buildTradeoff, scoreCommunitiesLocally } from './utils/scoring'
+import { scoreCommunitiesLocally } from './utils/scoring'
 import { searchNearbyCommunities } from './utils/communitySearch'
 import { toPropertyListing } from './utils/properties'
 
@@ -31,25 +31,6 @@ const NEIGHBORHOOD_RADIUS_LINE_LAYER_ID = 'wherenext-neighborhood-radius-line'
 
 const isLocalRegion = (region: RankedCommunity['region'] | ResolvedAnchor['region']) =>
   region === 'sf' || region === 'seattle' || region === 'irvine' || region === 'la' || region === 'nyc'
-
-const buildNeighborhoodOverview = (selected: RankedCommunity | null): string => {
-  if (!selected) {
-    return ''
-  }
-
-  const dimensions = [
-    { key: 'commute', label: 'commute', value: selected.commuteScore },
-    { key: 'cost', label: 'budget fit', value: selected.affordabilityScore },
-    { key: 'lifestyle', label: 'lifestyle fit', value: selected.lifestyleScore },
-  ].sort((a, b) => b.value - a.value)
-
-  const top = dimensions[0]
-  const second = dimensions[1]
-  const weakest = dimensions[2]
-  const strength = second.value >= 72 && top.value - second.value <= 14 ? `${top.label} and ${second.label}` : top.label
-  const sentence = `Strong ${strength}; watch for ${weakest.label}.`
-  return sentence.length <= 120 ? sentence : sentence.slice(0, 120).trimEnd()
-}
 
 const serializeAiCopyKey = ({
   neighborhood,
@@ -150,6 +131,7 @@ function App() {
   const [selectedPropertyId, setSelectedPropertyId] = useState<string | null>(null)
   const [isNeighborhoodFocused, setIsNeighborhoodFocused] = useState(false)
   const [aiNeighborhoodCopy, setAiNeighborhoodCopy] = useState<Record<string, NeighborhoodCopy>>({})
+  const [aiCopyLoadingById, setAiCopyLoadingById] = useState<Record<string, boolean>>({})
   const [isLoading, setIsLoading] = useState(false)
   const [hasSearched, setHasSearched] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
@@ -168,6 +150,7 @@ function App() {
   const updateTimer = useRef<number | null>(null)
   const aiCopyTimer = useRef<number | null>(null)
   const aiCopyCache = useRef<Map<string, NeighborhoodCopy>>(new Map())
+  const aiCopyRequestVersion = useRef<Record<string, number>>({})
   const navigate = useNavigate()
   const location = useLocation()
   const isResults = location.pathname === '/results'
@@ -186,10 +169,10 @@ function App() {
   const mapboxToken = runtimeMapboxToken.trim() || envMapboxToken || ''
   const affordabilityInput = housingMode === 'buy' ? maxHomePrice : budget
   const salaryForAnalysis = housingMode === 'buy' ? Math.round(maxHomePrice / 12) : DEFAULT_RENT_SALARY
-  const selectedNeighborhoodOverview = useMemo(() => buildNeighborhoodOverview(selected), [selected])
   const selectedCopy = selected ? aiNeighborhoodCopy[selected.id] ?? null : null
-  const selectedGood = selected ? (selectedCopy?.good ?? buildReason(selected)) : ''
-  const selectedTradeoff = selected ? (selectedCopy?.tradeoff ?? buildTradeoff(selected)) : ''
+  const selectedGood = selectedCopy?.good ?? ''
+  const selectedTradeoff = selectedCopy?.tradeoff ?? ''
+  const isSelectedCopyLoading = !!selected && !selectedCopy && (aiCopyLoadingById[selected.id] ?? true)
 
   useEffect(() => {
     window.localStorage.removeItem('wherenext:lastResults')
@@ -350,10 +333,10 @@ function App() {
   }
 
   const getCommunityReason = (community: RankedCommunity) =>
-    aiNeighborhoodCopy[community.id]?.good ?? buildReason(community)
+    aiNeighborhoodCopy[community.id]?.good ?? ''
 
   const getCommunityTradeoff = (community: RankedCommunity) =>
-    aiNeighborhoodCopy[community.id]?.tradeoff ?? buildTradeoff(community)
+    aiNeighborhoodCopy[community.id]?.tradeoff ?? ''
 
   useEffect(() => {
     if (!isResults || results.length === 0) {
@@ -381,8 +364,13 @@ function App() {
         const cached = aiCopyCache.current.get(cacheKey)
         if (cached) {
           setAiNeighborhoodCopy((previous) => ({ ...previous, [neighborhood.id]: cached }))
+          setAiCopyLoadingById((previous) => ({ ...previous, [neighborhood.id]: false }))
           return
         }
+
+        setAiCopyLoadingById((previous) => ({ ...previous, [neighborhood.id]: true }))
+        const nextVersion = (aiCopyRequestVersion.current[neighborhood.id] ?? 0) + 1
+        aiCopyRequestVersion.current[neighborhood.id] = nextVersion
 
         try {
           const copy = await fetchNeighborhoodCopy({
@@ -396,10 +384,13 @@ function App() {
             salary: salaryForAnalysis,
             commuteLimit: commute,
           })
+          if ((aiCopyRequestVersion.current[neighborhood.id] ?? 0) !== nextVersion) {
+            return
+          }
           const cleanedCopy = {
-            overview: (copy.overview ?? '').replace(/\.\.\./g, '').trim(),
-            good: (copy.good ?? '').replace(/\.\.\./g, '').trim(),
-            tradeoff: (copy.tradeoff ?? '').replace(/\.\.\./g, '').trim(),
+            overview: (copy.overview ?? '').replace(/\.{2,}/g, '.').trim(),
+            good: (copy.good ?? '').replace(/^good:\s*/i, '').replace(/\.{2,}/g, '.').trim(),
+            tradeoff: (copy.tradeoff ?? '').replace(/^tradeoff:\s*/i, '').replace(/\.{2,}/g, '.').trim(),
           }
           aiCopyCache.current.set(cacheKey, cleanedCopy)
           try {
@@ -408,8 +399,12 @@ function App() {
             // Ignore cache persistence errors.
           }
           setAiNeighborhoodCopy((previous) => ({ ...previous, [neighborhood.id]: cleanedCopy }))
+          setAiCopyLoadingById((previous) => ({ ...previous, [neighborhood.id]: false }))
         } catch {
-          // Fallback is handled by buildReason/buildTradeoff.
+          if ((aiCopyRequestVersion.current[neighborhood.id] ?? 0) !== nextVersion) {
+            return
+          }
+          setAiCopyLoadingById((previous) => ({ ...previous, [neighborhood.id]: false }))
         }
       })
     }, AI_COPY_DEBOUNCE_MS)
@@ -825,15 +820,17 @@ function App() {
               onSaveMapboxToken={handleSaveMapboxToken}
               mapContainerRef={mapContainerRef}
               selected={selected}
-              selectedOverview={selectedCopy?.overview ?? selectedNeighborhoodOverview}
+              selectedOverview={selectedCopy?.overview ?? ''}
               selectedGood={selectedGood}
               selectedTradeoff={selectedTradeoff}
               housingMode={housingMode}
+              isSelectedCopyLoading={isSelectedCopyLoading}
               results={results}
               selectedId={selectedId}
               onSelect={handleNeighborhoodSelect}
               buildReason={getCommunityReason}
               buildTradeoff={getCommunityTradeoff}
+              isCopyLoading={(item) => !aiNeighborhoodCopy[item.id] && (aiCopyLoadingById[item.id] ?? true)}
               properties={properties}
               isPropertiesLoading={isPropertiesLoading}
               propertyNotice={propertyNotice}

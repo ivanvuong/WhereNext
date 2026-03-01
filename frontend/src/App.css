@@ -735,6 +735,50 @@ textarea::placeholder {
   font-weight: 650;
 }
 
+.copy-skeleton {
+  margin-top: 8px;
+  display: grid;
+  gap: 6px;
+}
+
+.copy-skeleton span {
+  height: 12px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(189, 198, 214, 0.45) 25%, rgba(217, 224, 236, 0.75) 50%, rgba(189, 198, 214, 0.45) 75%);
+  background-size: 200% 100%;
+  animation: copyPulse 1.2s ease-in-out infinite;
+}
+
+.copy-skeleton span:first-child {
+  width: 96%;
+}
+
+.copy-skeleton span:last-child {
+  width: 76%;
+}
+
+.copy-skeleton--meta {
+  margin-top: 10px;
+}
+
+.copy-skeleton--meta span {
+  height: 11px;
+}
+
+.copy-skeleton--list {
+  margin-top: 6px;
+}
+
+@keyframes copyPulse {
+  0% {
+    background-position: 100% 0;
+  }
+
+  100% {
+    background-position: 0 0;
+  }
+}
+
 .mapbox-home-marker {
   width: 26px;
   height: 26px;

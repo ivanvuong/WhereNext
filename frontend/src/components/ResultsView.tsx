@@ -22,11 +22,13 @@ const ResultsView = ({
   selectedGood,
   selectedTradeoff,
   housingMode,
+  isSelectedCopyLoading,
   results,
   selectedId,
   onSelect,
   buildReason,
   buildTradeoff,
+  isCopyLoading,
   properties,
   isPropertiesLoading,
   propertyNotice,
@@ -52,11 +54,13 @@ const ResultsView = ({
   selectedGood: string
   selectedTradeoff: string
   housingMode: HousingMode
+  isSelectedCopyLoading: boolean
   results: RankedCommunity[]
   selectedId: string | null
   onSelect: (id: string) => void
   buildReason: (item: RankedCommunity) => string
   buildTradeoff: (item: RankedCommunity) => string
+  isCopyLoading: (item: RankedCommunity) => boolean
   properties: PropertyListing[]
   isPropertiesLoading: boolean
   propertyNotice: string | null
@@ -85,6 +89,7 @@ const ResultsView = ({
           selectedGood={selectedGood}
           selectedTradeoff={selectedTradeoff}
           housingMode={housingMode}
+          isSelectedCopyLoading={isSelectedCopyLoading}
           onCloseNeighborhood={onCloseNeighborhood}
           selectedProperty={selectedProperty}
           onClosePropertyDetail={onClosePropertyDetail}
@@ -96,6 +101,7 @@ const ResultsView = ({
           onSelect={onSelect}
           buildReason={buildReason}
           buildTradeoff={buildTradeoff}
+          isCopyLoading={isCopyLoading}
         />
 
         {selected ? (

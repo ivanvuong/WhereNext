@@ -52,8 +52,8 @@ export async function fetchNeighborhoodCopy(payload: NeighborhoodCopyRequest): P
 
   const data = (await response.json()) as NeighborhoodCopy
   return {
-    overview: String(data.overview ?? '').slice(0, 140),
-    good: String(data.good ?? '').slice(0, 120),
-    tradeoff: String(data.tradeoff ?? '').slice(0, 120),
+    overview: String(data.overview ?? ''),
+    good: String(data.good ?? ''),
+    tradeoff: String(data.tradeoff ?? ''),
   }
 }

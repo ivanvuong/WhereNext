@@ -15,6 +15,7 @@ const MapPanel = ({
   selectedGood,
   selectedTradeoff,
   housingMode,
+  isSelectedCopyLoading,
   onCloseNeighborhood,
   selectedProperty,
   onClosePropertyDetail,
@@ -29,6 +30,7 @@ const MapPanel = ({
   selectedGood: string
   selectedTradeoff: string
   housingMode: HousingMode
+  isSelectedCopyLoading: boolean
   onCloseNeighborhood: () => void
   selectedProperty: PropertyListing | null
   onClosePropertyDetail: () => void
@@ -63,15 +65,31 @@ const MapPanel = ({
               X
             </button>
           </div>
-          <p>{selectedOverview}</p>
+          {isSelectedCopyLoading ? (
+            <div className="copy-skeleton" aria-hidden>
+              <span />
+              <span />
+            </div>
+          ) : (
+            <p>{selectedOverview}</p>
+          )}
           <div className="map-neighborhood-overlay__chips">
             <span>Match {Math.round(selected.overallScore)}</span>
             <span>Commute {Math.round(selected.commuteScore)}</span>
             <span>Cost {Math.round(selected.affordabilityScore)}</span>
             <span>Lifestyle {Math.round(selected.lifestyleScore)}</span>
           </div>
-          <p className="map-neighborhood-overlay__meta">{selectedGood}</p>
-          <p className="map-neighborhood-overlay__meta">{selectedTradeoff}</p>
+          {isSelectedCopyLoading ? (
+            <div className="copy-skeleton copy-skeleton--meta" aria-hidden>
+              <span />
+              <span />
+            </div>
+          ) : (
+            <>
+              <p className="map-neighborhood-overlay__meta">{selectedGood}</p>
+              <p className="map-neighborhood-overlay__meta">{selectedTradeoff}</p>
+            </>
+          )}
           {housingMode === 'rent' ? <p className="map-neighborhood-overlay__rent">Avg rent {formatCurrency(selected.avgRent)}</p> : null}
         </aside>
       ) : null}

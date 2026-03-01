@@ -15,7 +15,10 @@ def _truncate(value: str, limit: int) -> str:
     text = " ".join((value or "").split())
     if len(text) <= limit:
         return text
-    return text[:limit].rstrip()
+    cut = text[:limit].rstrip()
+    if " " in cut and limit < len(text):
+        cut = cut.rsplit(" ", 1)[0].rstrip()
+    return cut
 
 
 def _heuristic_copy(request: NeighborhoodCopyRequest) -> NeighborhoodCopyResponse:
@@ -41,6 +44,8 @@ def _build_prompt(request: NeighborhoodCopyRequest) -> str:
         "Generate short neighborhood recommendation copy for this user.\n"
         "Return STRICT JSON only with keys: overview, good, tradeoff.\n"
         "Limits: overview<=140 chars, good<=120 chars, tradeoff<=120 chars.\n"
+        "Make copy specific to the named neighborhood and avoid generic repetition across neighborhoods.\n"
+        "Mention the neighborhood name in the overview.\n"
         "No markdown, no extra keys, no commentary.\n"
         f"Neighborhood: {request.neighborhood}\n"
         f"Anchor: {request.anchor_label or ''} ({request.anchor_region or ''})\n"
