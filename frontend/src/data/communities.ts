@@ -13,7 +13,7 @@ export type LifestyleScore = {
 export type Community = {
   id: string
   name: string
-  region: 'sf' | 'irvine'
+  region: 'sf' | 'irvine' | 'custom'
   latitude: number
   longitude: number
   avgRent: number

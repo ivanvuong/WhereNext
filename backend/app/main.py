@@ -33,6 +33,8 @@ def analyze(request: AnalyzeRequest) -> AnalyzeResponse:
     return AnalyzeResponse(
         anchor_label=anchor.label,
         anchor_region=anchor.region,
+        anchor_latitude=anchor.latitude,
+        anchor_longitude=anchor.longitude,
         candidate_count=len(ranked),
         communities=ranked,
     )
