@@ -1,5 +1,5 @@
 import type { RefObject } from 'react'
-import type { PropertyListing, RankedCommunity } from '../types/app'
+import type { PropertyListing, RankedCommunity, ResolvedAnchor } from '../types/app'
 import MapPanel from './MapPanel'
 import RecommendationList from './RecommendationList'
 import DetailGrid from './DetailGrid'
@@ -20,6 +20,8 @@ const ResultsView = ({
   selectedOverview,
   selectedGood,
   selectedTradeoff,
+  anchorLabel,
+  anchor,
   results,
   selectedId,
   onSelect,
@@ -49,6 +51,8 @@ const ResultsView = ({
   selectedOverview: string
   selectedGood: string
   selectedTradeoff: string
+  anchorLabel: string | null
+  anchor: ResolvedAnchor
   results: RankedCommunity[]
   selectedId: string | null
   onSelect: (id: string) => void
@@ -97,6 +101,8 @@ const ResultsView = ({
         {selected ? (
           <DetailGrid
             selected={selected}
+            anchorLabel={anchorLabel}
+            anchor={anchor}
             properties={properties}
             isPropertiesLoading={isPropertiesLoading}
             propertyNotice={propertyNotice}

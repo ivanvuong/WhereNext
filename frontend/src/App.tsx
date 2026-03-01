@@ -806,6 +806,8 @@ function App() {
               selectedOverview={selectedCopy?.overview ?? selectedNeighborhoodOverview}
               selectedGood={selectedGood}
               selectedTradeoff={selectedTradeoff}
+              anchorLabel={activeAnchorLabel}
+              anchor={anchor}
               results={results}
               selectedId={selectedId}
               onSelect={handleNeighborhoodSelect}
