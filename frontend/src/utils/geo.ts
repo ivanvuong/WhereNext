@@ -3,6 +3,29 @@ import type { ResolvedAnchor } from '../types/app'
 
 const inferRegionFromText = (value: string): Region => {
   const normalized = value.toLowerCase()
+
+  if (
+    normalized.includes('new york') ||
+    normalized.includes('nyc') ||
+    normalized.includes('manhattan') ||
+    normalized.includes('brooklyn') ||
+    normalized.includes('queens') ||
+    normalized.includes('bronx')
+  ) {
+    return 'nyc'
+  }
+
+  if (
+    normalized.includes('los angeles') ||
+    normalized.includes('dtla') ||
+    normalized.includes('hollywood') ||
+    normalized.includes('santa monica') ||
+    normalized.includes('westwood') ||
+    normalized.includes('culver city')
+  ) {
+    return 'la'
+  }
+
   if (normalized.includes('uci') || normalized.includes('irvine') || normalized.includes('tustin') || normalized.includes('orange county')) {
     return 'irvine'
   }
@@ -20,8 +43,27 @@ const inferRegionFromText = (value: string): Region => {
 
 export const resolveAnchor = (input: string): ResolvedAnchor => {
   const value = input.toLowerCase().trim()
+  const inferredRegion = inferRegionFromText(value)
 
-  if (inferRegionFromText(value) === 'irvine') {
+  if (inferredRegion === 'nyc') {
+    return {
+      label: 'New York Anchor',
+      latitude: 40.758,
+      longitude: -73.9855,
+      region: 'nyc',
+    }
+  }
+
+  if (inferredRegion === 'la') {
+    return {
+      label: 'Los Angeles Anchor',
+      latitude: 34.0522,
+      longitude: -118.2437,
+      region: 'la',
+    }
+  }
+
+  if (inferredRegion === 'irvine') {
     return {
       label: 'Irvine Anchor',
       latitude: 33.6405,
@@ -30,7 +72,7 @@ export const resolveAnchor = (input: string): ResolvedAnchor => {
     }
   }
 
-  if (inferRegionFromText(value) === 'seattle') {
+  if (inferredRegion === 'seattle') {
     return {
       label: 'Seattle Anchor',
       latitude: 47.6062,
@@ -39,7 +81,7 @@ export const resolveAnchor = (input: string): ResolvedAnchor => {
     }
   }
 
-  if (inferRegionFromText(value) === 'sf') {
+  if (inferredRegion === 'sf') {
     return {
       label: 'San Francisco Anchor',
       latitude: 37.7897,

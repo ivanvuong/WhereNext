@@ -1,5 +1,5 @@
 export type HouseholdType = 'single' | 'couple' | 'family' | 'with pets'
-export type Region = 'sf' | 'seattle' | 'irvine' | 'custom'
+export type Region = 'sf' | 'seattle' | 'irvine' | 'la' | 'nyc' | 'custom'
 
 export type AnalyzeRequestPayload = {
   anchor_input: string

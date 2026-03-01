@@ -20,7 +20,7 @@ export type BoundaryGeometry = {
 export type NeighborhoodBoundary = {
   id: string
   name: string
-  region: Extract<Region, 'sf' | 'seattle' | 'irvine'>
+  region: Extract<Region, 'sf' | 'seattle' | 'irvine' | 'la' | 'nyc'>
   latitude: number
   longitude: number
   source: 'wof' | 'osm'
@@ -97,7 +97,8 @@ const toLifestyle = (seed: NeighborhoodSeed): LifestyleScore => {
 
 const toAverageRent = (seed: NeighborhoodSeed): number => {
   const hash = hashString(seed.id)
-  const baseline = seed.region === 'sf' ? 3450 : seed.region === 'seattle' ? 2700 : 3000
+  const baseline =
+    seed.region === 'sf' ? 3450 : seed.region === 'seattle' ? 2700 : seed.region === 'la' ? 3200 : seed.region === 'nyc' ? 3850 : 3000
   const variance = scoreFromHash(hash, -850, 850, 17)
   return clamp(baseline + variance, 1700, 5600)
 }
@@ -159,6 +160,58 @@ const SEED_NEIGHBORHOODS: NeighborhoodSeed[] = [
   { id: 'sea-phinney-ridge', name: 'Phinney Ridge', region: 'seattle', latitude: 47.6715, longitude: -122.3556, source: 'osm', boundaryRadiusMiles: 0.97 },
   { id: 'sea-northgate', name: 'Northgate', region: 'seattle', latitude: 47.706, longitude: -122.3256, source: 'osm', boundaryRadiusMiles: 1.22 },
   { id: 'sea-central-district', name: 'Central District', region: 'seattle', latitude: 47.6085, longitude: -122.3028, source: 'osm', boundaryRadiusMiles: 0.96 },
+
+  { id: 'la-downtown', name: 'Downtown LA', region: 'la', latitude: 34.0407, longitude: -118.2468, source: 'osm', boundaryRadiusMiles: 1.12 },
+  { id: 'la-arts-district', name: 'Arts District', region: 'la', latitude: 34.0376, longitude: -118.2348, source: 'osm', boundaryRadiusMiles: 0.88 },
+  { id: 'la-koreatown', name: 'Koreatown', region: 'la', latitude: 34.0617, longitude: -118.3004, source: 'osm', boundaryRadiusMiles: 1.05 },
+  { id: 'la-hollywood', name: 'Hollywood', region: 'la', latitude: 34.1016, longitude: -118.3267, source: 'osm', boundaryRadiusMiles: 1.14 },
+  { id: 'la-west-hollywood', name: 'West Hollywood', region: 'la', latitude: 34.09, longitude: -118.3617, source: 'osm', boundaryRadiusMiles: 0.95 },
+  { id: 'la-los-feliz', name: 'Los Feliz', region: 'la', latitude: 34.1108, longitude: -118.287, source: 'osm', boundaryRadiusMiles: 0.91 },
+  { id: 'la-silver-lake', name: 'Silver Lake', region: 'la', latitude: 34.0866, longitude: -118.2707, source: 'osm', boundaryRadiusMiles: 0.98 },
+  { id: 'la-echo-park', name: 'Echo Park', region: 'la', latitude: 34.0782, longitude: -118.2606, source: 'osm', boundaryRadiusMiles: 0.9 },
+  { id: 'la-mid-wilshire', name: 'Mid-Wilshire', region: 'la', latitude: 34.0611, longitude: -118.3378, source: 'osm', boundaryRadiusMiles: 1.08 },
+  { id: 'la-westwood', name: 'Westwood', region: 'la', latitude: 34.0635, longitude: -118.4455, source: 'osm', boundaryRadiusMiles: 1.03 },
+  { id: 'la-brentwood', name: 'Brentwood', region: 'la', latitude: 34.0544, longitude: -118.473, source: 'osm', boundaryRadiusMiles: 1.02 },
+  { id: 'la-culver-city', name: 'Culver City', region: 'la', latitude: 34.0211, longitude: -118.3965, source: 'osm', boundaryRadiusMiles: 1.08 },
+  { id: 'la-palms', name: 'Palms', region: 'la', latitude: 34.0214, longitude: -118.405, source: 'osm', boundaryRadiusMiles: 0.83 },
+  { id: 'la-marina-del-rey', name: 'Marina del Rey', region: 'la', latitude: 33.9803, longitude: -118.4517, source: 'osm', boundaryRadiusMiles: 0.92 },
+  { id: 'la-venice', name: 'Venice', region: 'la', latitude: 33.985, longitude: -118.4695, source: 'osm', boundaryRadiusMiles: 1.03 },
+  { id: 'la-santa-monica', name: 'Santa Monica', region: 'la', latitude: 34.0195, longitude: -118.4912, source: 'osm', boundaryRadiusMiles: 1.14 },
+  { id: 'la-pasadena', name: 'Pasadena', region: 'la', latitude: 34.1478, longitude: -118.1445, source: 'osm', boundaryRadiusMiles: 1.21 },
+  { id: 'la-glendale', name: 'Glendale', region: 'la', latitude: 34.1425, longitude: -118.2551, source: 'osm', boundaryRadiusMiles: 1.16 },
+  { id: 'la-burbank', name: 'Burbank', region: 'la', latitude: 34.1808, longitude: -118.3089, source: 'osm', boundaryRadiusMiles: 1.18 },
+  { id: 'la-studio-city', name: 'Studio City', region: 'la', latitude: 34.1391, longitude: -118.3928, source: 'osm', boundaryRadiusMiles: 1.01 },
+  { id: 'la-sherman-oaks', name: 'Sherman Oaks', region: 'la', latitude: 34.1511, longitude: -118.4492, source: 'osm', boundaryRadiusMiles: 1.13 },
+  { id: 'la-highland-park', name: 'Highland Park', region: 'la', latitude: 34.1099, longitude: -118.1951, source: 'osm', boundaryRadiusMiles: 1.06 },
+  { id: 'la-playa-vista', name: 'Playa Vista', region: 'la', latitude: 33.9764, longitude: -118.4214, source: 'osm', boundaryRadiusMiles: 0.92 },
+  { id: 'la-manhattan-beach', name: 'Manhattan Beach', region: 'la', latitude: 33.8847, longitude: -118.4109, source: 'osm', boundaryRadiusMiles: 1.12 },
+  { id: 'la-el-segundo', name: 'El Segundo', region: 'la', latitude: 33.9192, longitude: -118.4165, source: 'osm', boundaryRadiusMiles: 1.08 },
+
+  { id: 'nyc-financial-district', name: 'Financial District', region: 'nyc', latitude: 40.7075, longitude: -74.0113, source: 'osm', boundaryRadiusMiles: 0.76 },
+  { id: 'nyc-tribeca', name: 'Tribeca', region: 'nyc', latitude: 40.7163, longitude: -74.0086, source: 'osm', boundaryRadiusMiles: 0.72 },
+  { id: 'nyc-soho', name: 'SoHo', region: 'nyc', latitude: 40.7233, longitude: -74.002, source: 'osm', boundaryRadiusMiles: 0.73 },
+  { id: 'nyc-chinatown', name: 'Chinatown', region: 'nyc', latitude: 40.7158, longitude: -73.997, source: 'osm', boundaryRadiusMiles: 0.66 },
+  { id: 'nyc-lower-east-side', name: 'Lower East Side', region: 'nyc', latitude: 40.718, longitude: -73.9882, source: 'osm', boundaryRadiusMiles: 0.81 },
+  { id: 'nyc-east-village', name: 'East Village', region: 'nyc', latitude: 40.7265, longitude: -73.9815, source: 'osm', boundaryRadiusMiles: 0.77 },
+  { id: 'nyc-west-village', name: 'West Village', region: 'nyc', latitude: 40.7342, longitude: -74.006, source: 'osm', boundaryRadiusMiles: 0.74 },
+  { id: 'nyc-chelsea', name: 'Chelsea', region: 'nyc', latitude: 40.7465, longitude: -74.0014, source: 'osm', boundaryRadiusMiles: 0.89 },
+  { id: 'nyc-midtown', name: 'Midtown', region: 'nyc', latitude: 40.7549, longitude: -73.984, source: 'osm', boundaryRadiusMiles: 1.02 },
+  { id: 'nyc-hells-kitchen', name: "Hell's Kitchen", region: 'nyc', latitude: 40.7644, longitude: -73.9936, source: 'osm', boundaryRadiusMiles: 0.93 },
+  { id: 'nyc-upper-west-side', name: 'Upper West Side', region: 'nyc', latitude: 40.787, longitude: -73.9754, source: 'osm', boundaryRadiusMiles: 1.11 },
+  { id: 'nyc-upper-east-side', name: 'Upper East Side', region: 'nyc', latitude: 40.7736, longitude: -73.9566, source: 'osm', boundaryRadiusMiles: 1.08 },
+  { id: 'nyc-harlem', name: 'Harlem', region: 'nyc', latitude: 40.8116, longitude: -73.9465, source: 'osm', boundaryRadiusMiles: 1.17 },
+  { id: 'nyc-long-island-city', name: 'Long Island City', region: 'nyc', latitude: 40.7447, longitude: -73.9485, source: 'osm', boundaryRadiusMiles: 1.04 },
+  { id: 'nyc-astoria', name: 'Astoria', region: 'nyc', latitude: 40.7644, longitude: -73.9235, source: 'osm', boundaryRadiusMiles: 1.09 },
+  { id: 'nyc-williamsburg', name: 'Williamsburg', region: 'nyc', latitude: 40.7081, longitude: -73.9571, source: 'osm', boundaryRadiusMiles: 1.04 },
+  { id: 'nyc-greenpoint', name: 'Greenpoint', region: 'nyc', latitude: 40.7293, longitude: -73.9541, source: 'osm', boundaryRadiusMiles: 0.95 },
+  { id: 'nyc-dumbo', name: 'DUMBO', region: 'nyc', latitude: 40.7033, longitude: -73.9881, source: 'osm', boundaryRadiusMiles: 0.72 },
+  { id: 'nyc-brooklyn-heights', name: 'Brooklyn Heights', region: 'nyc', latitude: 40.696, longitude: -73.9967, source: 'osm', boundaryRadiusMiles: 0.78 },
+  { id: 'nyc-park-slope', name: 'Park Slope', region: 'nyc', latitude: 40.672, longitude: -73.977, source: 'osm', boundaryRadiusMiles: 1.03 },
+  { id: 'nyc-fort-greene', name: 'Fort Greene', region: 'nyc', latitude: 40.6916, longitude: -73.9733, source: 'osm', boundaryRadiusMiles: 0.88 },
+  { id: 'nyc-flushing', name: 'Flushing', region: 'nyc', latitude: 40.7654, longitude: -73.8173, source: 'osm', boundaryRadiusMiles: 1.21 },
+  { id: 'nyc-forest-hills', name: 'Forest Hills', region: 'nyc', latitude: 40.7181, longitude: -73.8448, source: 'osm', boundaryRadiusMiles: 1.1 },
+  { id: 'nyc-jackson-heights', name: 'Jackson Heights', region: 'nyc', latitude: 40.7557, longitude: -73.8831, source: 'osm', boundaryRadiusMiles: 0.94 },
+  { id: 'nyc-sunnyside', name: 'Sunnyside', region: 'nyc', latitude: 40.7422, longitude: -73.9196, source: 'osm', boundaryRadiusMiles: 0.9 },
 
   { id: 'irv-spectrum', name: 'Irvine Spectrum', region: 'irvine', latitude: 33.6508, longitude: -117.743, source: 'osm', boundaryRadiusMiles: 0.85 },
   { id: 'irv-woodbridge', name: 'Woodbridge', region: 'irvine', latitude: 33.6785, longitude: -117.8032, source: 'osm', boundaryRadiusMiles: 1.05 },

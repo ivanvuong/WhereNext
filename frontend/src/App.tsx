@@ -22,6 +22,56 @@ import { toPropertyListing } from './utils/properties'
 const DEFAULT_ANCHOR = ''
 const DEFAULT_PREFS = ''
 const DEFAULT_RENT_SALARY = 80_000
+const HOMES_API_PAUSED = true
+const NEIGHBORHOOD_RADIUS_SOURCE_ID = 'wherenext-neighborhood-radius-source'
+const NEIGHBORHOOD_RADIUS_FILL_LAYER_ID = 'wherenext-neighborhood-radius-fill'
+const NEIGHBORHOOD_RADIUS_LINE_LAYER_ID = 'wherenext-neighborhood-radius-line'
+
+const isLocalRegion = (region: RankedCommunity['region'] | ResolvedAnchor['region']) =>
+  region === 'sf' || region === 'seattle' || region === 'irvine' || region === 'la' || region === 'nyc'
+
+const buildCircleRing = (latitude: number, longitude: number, radiusMiles: number): [number, number][] => {
+  const points = 56
+  const ring: [number, number][] = []
+  const latitudeMiles = 69
+  const latitudeRadius = radiusMiles / latitudeMiles
+  const longitudeRadius = radiusMiles / (latitudeMiles * Math.max(Math.cos((latitude * Math.PI) / 180), 0.2))
+
+  for (let index = 0; index <= points; index += 1) {
+    const angle = (index / points) * Math.PI * 2
+    ring.push([longitude + Math.cos(angle) * longitudeRadius, latitude + Math.sin(angle) * latitudeRadius])
+  }
+
+  return ring
+}
+
+const computeNeighborhoodCircleRadiusMiles = (
+  target: RankedCommunity,
+  neighborhoods: RankedCommunity[],
+): number => {
+  if (neighborhoods.length <= 1) {
+    return 0.5
+  }
+
+  let nearestMiles = Number.POSITIVE_INFINITY
+  neighborhoods.forEach((candidate) => {
+    if (candidate.id === target.id) {
+      return
+    }
+
+    const miles = haversineMiles(target.latitude, target.longitude, candidate.latitude, candidate.longitude)
+    if (miles < nearestMiles) {
+      nearestMiles = miles
+    }
+  })
+
+  if (!Number.isFinite(nearestMiles)) {
+    return 0.5
+  }
+
+  // Keep circles visibly present while avoiding overlap in dense clusters.
+  return Math.min(0.5, Math.max(0.12, nearestMiles * 0.45))
+}
 
 function App() {
   const mapContainerRef = useRef<HTMLDivElement | null>(null)
@@ -96,7 +146,7 @@ function App() {
 
       const anchorPayload = anchorOverride ?? resolveAnchor(anchorInput)
 
-      if (anchorPayload.region === 'sf' || anchorPayload.region === 'seattle' || anchorPayload.region === 'irvine') {
+      if (isLocalRegion(anchorPayload.region)) {
         const ranked = scoreCommunitiesLocally({
           anchor: anchorPayload,
           budget,
@@ -125,7 +175,7 @@ function App() {
 
       if (anchorPayload.region === 'custom') {
         if (!mapboxToken) {
-          setNotice('Add a Mapbox token to search cities outside SF/Seattle/Irvine.')
+          setNotice('Add a Mapbox token to search cities outside the built-in metro sets.')
           setResults([])
           setSelectedId(null)
           return
@@ -159,7 +209,7 @@ function App() {
     } catch {
       const fallbackAnchor = resolvedAnchor ?? resolveAnchor(anchorInput)
       const fallbackCommunities =
-        fallbackAnchor.region === 'sf' || fallbackAnchor.region === 'seattle' || fallbackAnchor.region === 'irvine'
+        isLocalRegion(fallbackAnchor.region)
           ? getCommunitiesForRegion(fallbackAnchor.region)
           : undefined
 
@@ -195,6 +245,8 @@ function App() {
     setSelectedId(id)
     setSelectedPropertyId(null)
     setIsNeighborhoodFocused(true)
+    setProperties([])
+    setPropertyNotice(null)
   }
 
   const handleCloseNeighborhood = () => {
@@ -250,6 +302,14 @@ function App() {
       return
     }
 
+    if (HOMES_API_PAUSED) {
+      setProperties([])
+      setSelectedPropertyId(null)
+      setPropertyNotice('Homes API is paused. Placeholder mode is active.')
+      setIsPropertiesLoading(false)
+      return
+    }
+
     const inferCityAndState = (): { city?: string; state_code?: string } => {
       if (selected.region === 'sf') {
         return { city: 'San Francisco', state_code: 'CA' }
@@ -260,6 +320,12 @@ function App() {
       if (selected.region === 'irvine') {
         return { city: 'Irvine', state_code: 'CA' }
       }
+      if (selected.region === 'la') {
+        return { city: 'Los Angeles', state_code: 'CA' }
+      }
+      if (selected.region === 'nyc') {
+        return { city: 'New York', state_code: 'NY' }
+      }
       return {}
     }
 
@@ -267,6 +333,7 @@ function App() {
     const run = async () => {
       setIsPropertiesLoading(true)
       setPropertyNotice(null)
+      setProperties([])
       try {
         const region = inferCityAndState()
         const response = await searchProperties({
@@ -308,7 +375,7 @@ function App() {
           if (previous && mapped.some((home) => home.id === previous)) {
             return previous
           }
-          return mapped[0]?.id ?? null
+          return null
         })
         if (mapped.length === 0) {
           setPropertyNotice('No matching homes found for this neighborhood and filter mix.')
@@ -419,10 +486,67 @@ function App() {
     const visibleNeighborhoods =
       isNeighborhoodFocused && selected ? results.filter((result) => result.id === selected.id) : results
 
+    const removeNeighborhoodRadiusLayers = () => {
+      if (map.getLayer(NEIGHBORHOOD_RADIUS_LINE_LAYER_ID)) {
+        map.removeLayer(NEIGHBORHOOD_RADIUS_LINE_LAYER_ID)
+      }
+      if (map.getLayer(NEIGHBORHOOD_RADIUS_FILL_LAYER_ID)) {
+        map.removeLayer(NEIGHBORHOOD_RADIUS_FILL_LAYER_ID)
+      }
+      if (map.getSource(NEIGHBORHOOD_RADIUS_SOURCE_ID)) {
+        map.removeSource(NEIGHBORHOOD_RADIUS_SOURCE_ID)
+      }
+    }
+
+    removeNeighborhoodRadiusLayers()
+
+    if (!isNeighborhoodFocused && visibleNeighborhoods.length > 0) {
+      const radiusGeoJson = {
+        type: 'FeatureCollection' as const,
+        features: visibleNeighborhoods.map((item) => {
+          const markerRadiusMiles = computeNeighborhoodCircleRadiusMiles(item, visibleNeighborhoods)
+          return {
+            type: 'Feature' as const,
+            properties: { id: item.id },
+            geometry: {
+              type: 'Polygon' as const,
+              coordinates: [buildCircleRing(item.latitude, item.longitude, markerRadiusMiles)],
+            },
+          }
+        }),
+      }
+
+      map.addSource(NEIGHBORHOOD_RADIUS_SOURCE_ID, {
+        type: 'geojson',
+        data: radiusGeoJson,
+      })
+
+      map.addLayer({
+        id: NEIGHBORHOOD_RADIUS_FILL_LAYER_ID,
+        type: 'fill',
+        source: NEIGHBORHOOD_RADIUS_SOURCE_ID,
+        paint: {
+          'fill-color': '#f2b114',
+          'fill-opacity': 0.14,
+        },
+      })
+
+      map.addLayer({
+        id: NEIGHBORHOOD_RADIUS_LINE_LAYER_ID,
+        type: 'line',
+        source: NEIGHBORHOOD_RADIUS_SOURCE_ID,
+        paint: {
+          'line-color': '#f2b114',
+          'line-width': 1.2,
+          'line-opacity': 0.52,
+        },
+      })
+    }
+
     visibleNeighborhoods.forEach((result) => {
       const el = document.createElement('button')
       el.type = 'button'
-      el.className = `mapbox-marker ${selected?.id === result.id ? 'mapbox-marker--active' : ''}`
+      el.className = `mapbox-marker ${isNeighborhoodFocused && selected?.id === result.id ? 'mapbox-marker--active' : ''}`
       el.addEventListener('click', () => handleNeighborhoodSelect(result.id))
 
       const marker = new mapboxgl.Marker({ element: el, anchor: 'center' })
@@ -435,7 +559,6 @@ function App() {
     const mapReadyHomes = isNeighborhoodFocused
       ? properties.filter((home) => home.latitude !== null && home.longitude !== null)
       : []
-    const homeBounds = new mapboxgl.LngLatBounds()
 
     mapReadyHomes.forEach((home) => {
       if (home.longitude === null || home.latitude === null) {
@@ -446,6 +569,10 @@ function App() {
       el.type = 'button'
       el.className = `mapbox-home-marker ${selectedPropertyId === home.id ? 'mapbox-home-marker--active' : ''}`
       el.addEventListener('click', () => setSelectedPropertyId(home.id))
+
+      const houseIcon = document.createElement('span')
+      houseIcon.className = 'mapbox-home-marker__icon'
+      el.appendChild(houseIcon)
 
       if (selectedPropertyId === home.id && home.primaryPhoto) {
         const preview = document.createElement('div')
@@ -464,7 +591,6 @@ function App() {
         .setLngLat([home.longitude, home.latitude])
         .addTo(map)
       markerRefs.current.push(marker)
-      homeBounds.extend([home.longitude, home.latitude])
     })
 
     if (isNeighborhoodFocused && selected) {
@@ -474,9 +600,6 @@ function App() {
           zoom: 15.3,
           speed: 0.85,
         })
-      } else if (!homeBounds.isEmpty()) {
-        homeBounds.extend([selected.longitude, selected.latitude])
-        map.fitBounds(homeBounds, { padding: 90, duration: 700, maxZoom: 14.2 })
       } else {
         map.flyTo({
           center: [selected.longitude, selected.latitude],
@@ -503,6 +626,7 @@ function App() {
     results,
     selected?.id,
     isNeighborhoodFocused,
+    radius,
     properties,
     selectedPropertyId,
     selectedProperty,
