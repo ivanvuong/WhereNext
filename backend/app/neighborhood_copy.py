@@ -30,45 +30,9 @@ def _heuristic_copy(request: NeighborhoodCopyRequest) -> NeighborhoodCopyRespons
     weakest = dims[2]
 
     strengths = f"{top[2]} and {second[2]}" if second[1] >= 70 and top[1] - second[1] <= 14 else top[2]
-<<<<<<< ours
-<<<<<<< ours
-<<<<<<< ours
-<<<<<<< ours
-<<<<<<< ours
-<<<<<<< ours
     overview = _truncate(f"{strengths}; watch for {weakest[3]}.", 140)
     good = _truncate(f"Good: {strengths}.", 120)
     tradeoff = _truncate(f"Tradeoff: {weakest[3]}.", 120)
-=======
-    overview = _truncate(f"{strengths.capitalize()} with a practical day-to-day fit, but watch for {weakest[3]}.", 220)
-    good = _truncate(f"{strengths.capitalize()}.", 140)
-    tradeoff = _truncate(f"{weakest[3].capitalize()}.", 140)
->>>>>>> theirs
-=======
-    overview = _truncate(f"{strengths.capitalize()} with a practical day-to-day fit, but watch for {weakest[3]}.", 220)
-    good = _truncate(f"{strengths.capitalize()}.", 140)
-    tradeoff = _truncate(f"{weakest[3].capitalize()}.", 140)
->>>>>>> theirs
-=======
-    overview = _truncate(f"This area shows {strengths}, but plan for {weakest[3]} in your day-to-day routine.", 220)
-    good = _truncate(f"Strongest fit: {strengths}, aligned with your current priorities and budget profile.", 140)
-    tradeoff = _truncate(f"Main tradeoff: {weakest[3]}, which may require compromise depending on your lifestyle goals.", 140)
->>>>>>> theirs
-=======
-    overview = _truncate(f"This area shows {strengths}, but plan for {weakest[3]} in your day-to-day routine.", 220)
-    good = _truncate(f"Strongest fit: {strengths}, aligned with your current priorities and budget profile.", 140)
-    tradeoff = _truncate(f"Main tradeoff: {weakest[3]}, which may require compromise depending on your lifestyle goals.", 140)
->>>>>>> theirs
-=======
-    overview = _truncate(f"This area shows {strengths}, but plan for {weakest[3]} in your day-to-day routine.", 220)
-    good = _truncate(f"Strongest fit: {strengths}, aligned with your current priorities and budget profile.", 140)
-    tradeoff = _truncate(f"Main tradeoff: {weakest[3]}, which may require compromise depending on your lifestyle goals.", 140)
->>>>>>> theirs
-=======
-    overview = _truncate(f"{strengths}; watch for {weakest[3]}.", 140)
-    good = _truncate(f"Good: {strengths}.", 120)
-    tradeoff = _truncate(f"Tradeoff: {weakest[3]}.", 120)
->>>>>>> theirs
     return NeighborhoodCopyResponse(overview=overview, good=good, tradeoff=tradeoff)
 
 
@@ -76,31 +40,7 @@ def _build_prompt(request: NeighborhoodCopyRequest) -> str:
     return (
         "Generate short neighborhood recommendation copy for this user.\n"
         "Return STRICT JSON only with keys: overview, good, tradeoff.\n"
-<<<<<<< ours
-<<<<<<< ours
         "Limits: overview<=140 chars, good<=120 chars, tradeoff<=120 chars.\n"
-=======
-        "Limits: overview<=220 chars, good<=140 chars, tradeoff<=140 chars.\n"
-<<<<<<< ours
-<<<<<<< ours
-<<<<<<< ours
-        "Keep tone natural and concise, like product UI copy.\n"
-<<<<<<< ours
->>>>>>> theirs
-=======
->>>>>>> theirs
-=======
-        "Write complete, polished, capitalized sentences with punctuation.\n"
->>>>>>> theirs
-=======
-        "Write complete, polished, capitalized sentences with punctuation.\n"
->>>>>>> theirs
-=======
-        "Write complete, polished, capitalized sentences with punctuation.\n"
->>>>>>> theirs
-=======
-        "Limits: overview<=140 chars, good<=120 chars, tradeoff<=120 chars.\n"
->>>>>>> theirs
         "No markdown, no extra keys, no commentary.\n"
         f"Neighborhood: {request.neighborhood}\n"
         f"Anchor: {request.anchor_label or ''} ({request.anchor_region or ''})\n"

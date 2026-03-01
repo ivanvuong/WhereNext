@@ -185,7 +185,6 @@ function App() {
   const mapboxToken = runtimeMapboxToken.trim() || envMapboxToken || ''
   const affordabilityInput = housingMode === 'buy' ? maxHomePrice : budget
   const salaryForAnalysis = housingMode === 'buy' ? Math.round(maxHomePrice / 12) : DEFAULT_RENT_SALARY
-  const radiusSummaryLabel = `~${estimateCommuteMinutesFromMiles(radius)} min from anchor at ${radius} miles`
   const selectedNeighborhoodOverview = useMemo(() => buildNeighborhoodOverview(selected), [selected])
   const selectedCopy = selected ? aiNeighborhoodCopy[selected.id] ?? null : null
   const selectedGood = selected ? (selectedCopy?.good ?? buildReason(selected)) : ''
@@ -779,7 +778,6 @@ function App() {
         onCommuteChange={setCommute}
         radius={radius}
         onRadiusChange={setRadius}
-        radiusSummaryLabel={radiusSummaryLabel}
         household={household}
         onHouseholdChange={setHousehold}
         lifestyle={lifestyle}
@@ -806,8 +804,6 @@ function App() {
               selectedOverview={selectedCopy?.overview ?? selectedNeighborhoodOverview}
               selectedGood={selectedGood}
               selectedTradeoff={selectedTradeoff}
-              anchorLabel={activeAnchorLabel}
-              anchor={anchor}
               results={results}
               selectedId={selectedId}
               onSelect={handleNeighborhoodSelect}
