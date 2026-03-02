@@ -1,10 +1,12 @@
 #root {
   min-height: 100vh;
+  min-height: 100dvh;
   width: 100%;
 }
 
 .app {
   min-height: 100vh;
+  min-height: 100dvh;
   width: 100%;
   display: grid;
   background: var(--surface-muted);
@@ -33,12 +35,15 @@
   flex-direction: column;
   min-height: 100vh;
   height: 100vh;
+  min-height: 100dvh;
+  height: 100dvh;
   max-height: none;
 }
 
 .survey--sidebar {
   width: 100%;
   max-height: 100vh;
+  max-height: 100dvh;
   border-radius: 0;
   border: 0;
   border-right: 1px solid var(--border-soft);
@@ -97,8 +102,8 @@
 }
 
 .brand__mark {
-  width: 48px;
-  height: 48px;
+  width: 52px;
+  height: 52px;
   border-radius: 16px;
   background: var(--ink-main);
   display: grid;
@@ -107,13 +112,13 @@
 }
 
 .brand__icon {
-  width: 24px;
-  height: 24px;
+  width: 26px;
+  height: 26px;
 }
 
 .brand__name {
   font-family: var(--font-heading);
-  font-size: 36px;
+  font-size: clamp(2.4rem, 4.8vw, 3.1rem);
   line-height: 1;
   letter-spacing: -0.04em;
 }
@@ -393,13 +398,21 @@ textarea::placeholder {
 }
 
 .app--survey .survey__inner {
-  padding-top: 10px;
-  padding-bottom: 8px;
+  max-width: min(94vw, 1480px);
+  padding: clamp(8px, 1.35vh, 20px) clamp(18px, 4.4vw, 76px) 0;
+}
+
+.app--survey .survey__header {
+  display: grid;
+  justify-items: center;
+  gap: clamp(4px, 0.8vh, 10px);
 }
 
 .app--survey .survey__header h1 {
-  margin-top: 8px;
-  font-size: clamp(1.45rem, 2.6vw, 2.05rem);
+  margin: 0;
+  max-width: min(90vw, 1220px);
+  font-size: clamp(2.1rem, 3.4vw, 4.1rem);
+  line-height: 1.06;
 }
 
 .app--survey .survey__header p {
@@ -407,26 +420,74 @@ textarea::placeholder {
 }
 
 .app--survey .survey-form {
-  margin-top: 6px;
-  gap: 8px;
+  margin-top: clamp(2px, 0.55vh, 8px);
+  gap: clamp(7px, 1.05vh, 13px);
+}
+
+.app--survey .brand {
+  gap: clamp(12px, 1.3vw, 18px);
+}
+
+.app--survey .brand__mark {
+  width: clamp(56px, 4.6vw, 88px);
+  height: clamp(56px, 4.6vw, 88px);
+  border-radius: clamp(16px, 1.3vw, 24px);
+}
+
+.app--survey .brand__icon {
+  width: clamp(30px, 2.15vw, 40px);
+  height: clamp(30px, 2.15vw, 40px);
+}
+
+.app--survey .brand__name {
+  font-size: clamp(3rem, 5.2vw, 5.7rem);
 }
 
 .app--survey .survey-form--landing {
-  gap: 10px;
+  gap: clamp(8px, 1.2vh, 16px);
+}
+
+.app--survey .mode-toggle {
+  width: clamp(220px, 16vw, 300px);
+  padding: clamp(3px, 0.35vw, 5px);
+}
+
+.app--survey .mode-toggle__button {
+  height: clamp(42px, 4.2vh, 52px);
+  font-size: clamp(1rem, 1.35vw, 1.35rem);
 }
 
 .app--survey .field-group,
 .app--survey .metric-slider {
-  gap: 6px;
+  gap: clamp(5px, 0.75vh, 9px);
 }
 
 .app--survey .field-group label,
 .app--survey .metric-slider__header label {
-  font-size: 1rem;
+  font-size: clamp(1.12rem, 1.35vw, 1.55rem);
+}
+
+.app--survey .metric-slider__header strong {
+  font-size: clamp(1.15rem, 2vw, 2.2rem);
+}
+
+.app--survey .search-field__icon {
+  width: clamp(36px, 2.8vw, 46px);
+  height: clamp(36px, 2.8vw, 46px);
 }
 
 .app--survey .search-field input {
-  height: 48px;
+  height: clamp(58px, 5.8vh, 74px);
+  padding-left: clamp(68px, 4.2vw, 84px);
+  font-size: clamp(1.28rem, 1.85vw, 2rem);
+}
+
+.app--survey .caption {
+  font-size: clamp(1rem, 1.28vw, 1.34rem);
+}
+
+.app--survey .chip-row {
+  gap: clamp(8px, 0.85vw, 14px);
 }
 
 .app--survey textarea {
@@ -435,20 +496,29 @@ textarea::placeholder {
 }
 
 .app--survey .field-group:last-of-type textarea {
-  min-height: clamp(110px, 16vh, 150px);
+  min-height: clamp(96px, 13.5vh, 176px);
+  padding: clamp(12px, 1vh, 16px) clamp(14px, 1vw, 20px);
+  font-size: clamp(1.2rem, 1.65vw, 1.95rem);
+  margin-bottom: 0;
 }
 
 .app--survey .chip {
-  padding: 6px 13px;
+  padding: clamp(7px, 0.95vh, 12px) clamp(14px, 1.2vw, 22px);
+  font-size: clamp(1.02rem, 1.22vw, 1.35rem);
 }
 
 .app--survey .survey__footer {
   margin-top: auto;
-  padding-top: 6px;
-  padding-bottom: 20px;
+  padding: clamp(8px, 1vh, 14px) clamp(18px, 4.4vw, 76px) calc(clamp(10px, 1.1vh, 16px) + env(safe-area-inset-bottom));
   display: flex;
   justify-content: center;
   align-items: center;
+}
+
+.app--survey .cta {
+  height: clamp(52px, 6.2vh, 72px);
+  border-radius: clamp(14px, 1vw, 20px);
+  font-size: clamp(1.3rem, 1.8vw, 2rem);
 }
 
 .cta,
@@ -1366,31 +1436,56 @@ textarea::placeholder {
     padding: 0;
   }
 
-  .survey {
-    min-height: 100vh;
+  .app--survey .survey__inner {
+    max-width: 100%;
+    padding: 10px 14px 0;
   }
 
-  .survey__inner {
-    padding: 16px;
-    padding-bottom: calc(16px + env(safe-area-inset-bottom) + 14px);
+  .app--survey .brand__name {
+    font-size: clamp(2.2rem, 10vw, 2.9rem);
   }
 
-  .survey__header h1 {
-    margin-top: 14px;
-    font-size: 1.7rem;
+  .app--survey .survey__header h1 {
+    font-size: clamp(1.6rem, 6.8vw, 2.2rem);
   }
 
-  .survey__header p {
+  .app--survey .mode-toggle {
+    width: min(220px, 62vw);
+  }
+
+  .app--survey .mode-toggle__button {
+    height: 38px;
+    font-size: 0.95rem;
+  }
+
+  .app--survey .search-field input {
+    height: 50px;
+    padding-left: 62px;
     font-size: 1rem;
   }
 
-  .mode-toggle {
-    width: 184px;
+  .app--survey .field-group label,
+  .app--survey .metric-slider__header label {
+    font-size: 1rem;
   }
 
-  .mode-toggle__button {
-    height: 34px;
-    font-size: 0.85rem;
+  .app--survey .metric-slider__header strong {
+    font-size: 1rem;
+  }
+
+  .app--survey .field-group:last-of-type textarea {
+    min-height: 84px;
+    font-size: 1rem;
+  }
+
+  .app--survey .chip {
+    font-size: 0.95rem;
+    padding: 6px 12px;
+  }
+
+  .app--survey .cta {
+    height: 48px;
+    font-size: 1.1rem;
   }
 
   .slider-grid--split {
@@ -1415,24 +1510,68 @@ textarea::placeholder {
   }
 }
 
-@media (max-height: 820px) {
-  .survey__inner {
-    padding: 18px clamp(16px, 3.5vw, 48px) 12px;
+@media (max-height: 900px) {
+  .app--survey .brand__name {
+    font-size: clamp(2.4rem, 4.6vw, 4rem);
   }
 
-  .survey-form {
-    gap: 10px;
+  .app--survey .survey__header h1 {
+    font-size: clamp(1.7rem, 3.1vw, 3rem);
   }
 
-  .survey__header h1 {
-    font-size: clamp(1.4rem, 2.6vw, 2.1rem);
+  .app--survey .mode-toggle__button {
+    height: clamp(36px, 3.8vh, 44px);
   }
 
-  .survey__header p {
-    font-size: 1.05rem;
+  .app--survey .search-field input {
+    height: clamp(48px, 5vh, 58px);
+    font-size: clamp(1rem, 1.3vw, 1.25rem);
   }
 
-  textarea {
-    min-height: 56px;
+  .app--survey .field-group label,
+  .app--survey .metric-slider__header label {
+    font-size: clamp(1rem, 1.12vw, 1.2rem);
+  }
+
+  .app--survey .metric-slider__header strong {
+    font-size: clamp(1.05rem, 1.55vw, 1.7rem);
+  }
+
+  .app--survey .field-group:last-of-type textarea {
+    min-height: clamp(78px, 10.5vh, 118px);
+    font-size: clamp(1rem, 1.18vw, 1.2rem);
+  }
+
+  .app--survey .chip {
+    padding: 6px 12px;
+    font-size: clamp(0.96rem, 1.05vw, 1.12rem);
+  }
+
+  .app--survey .cta {
+    height: clamp(46px, 5.3vh, 56px);
+    font-size: clamp(1.12rem, 1.45vw, 1.45rem);
+  }
+}
+
+@media (max-height: 760px) {
+  .app--survey .survey__inner {
+    padding-top: 6px;
+  }
+
+  .app--survey .survey-form {
+    gap: 6px;
+  }
+
+  .app--survey .survey-form--landing {
+    gap: 7px;
+  }
+
+  .app--survey .field-group,
+  .app--survey .metric-slider {
+    gap: 4px;
+  }
+
+  .app--survey .field-group:last-of-type textarea {
+    min-height: 68px;
   }
 }

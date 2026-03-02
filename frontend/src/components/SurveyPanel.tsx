@@ -51,7 +51,6 @@ const SurveyPanel = ({
         {!isResults ? (
           <>
             <h1>Find the best place to live based on your life</h1>
-            <p>From job or school to neighborhood recommendations in seconds</p>
           </>
         ) : null}
       </div>

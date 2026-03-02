@@ -133,6 +133,9 @@ function App() {
   const mapContainerRef = useRef<HTMLDivElement | null>(null)
   const mapRef = useRef<mapboxgl.Map | null>(null)
   const markerRefs = useRef<mapboxgl.Marker[]>([])
+  const hasUserAdjustedViewport = useRef(false)
+  const isProgrammaticViewportChange = useRef(false)
+  const lastViewportIntentKey = useRef<string | null>(null)
   const [isMapReady, setIsMapReady] = useState(false)
   const [anchorInput, setAnchorInput] = useState(DEFAULT_ANCHOR)
   const [housingMode, setHousingMode] = useState<HousingMode>('buy')
@@ -602,6 +605,14 @@ function App() {
       })
 
       mapRef.current.addControl(new mapboxgl.NavigationControl({ showZoom: true }), 'top-right')
+      mapRef.current.on('movestart', () => {
+        if (!isProgrammaticViewportChange.current) {
+          hasUserAdjustedViewport.current = true
+        }
+      })
+      mapRef.current.on('moveend', () => {
+        isProgrammaticViewportChange.current = false
+      })
       mapRef.current.on('load', () => {
         setIsMapReady(true)
         mapRef.current?.resize()
@@ -750,22 +761,46 @@ function App() {
     })
 
     if (isNeighborhoodFocused && selected) {
+      const viewportIntentKey = `focus:${selected.id}:${selectedProperty?.id ?? 'none'}`
+      const shouldAdjustViewport =
+        !hasUserAdjustedViewport.current || lastViewportIntentKey.current !== viewportIntentKey
+
+      if (shouldAdjustViewport) {
+        isProgrammaticViewportChange.current = true
+        lastViewportIntentKey.current = viewportIntentKey
+      }
+
       if (selectedProperty && selectedProperty.latitude !== null && selectedProperty.longitude !== null) {
-        map.flyTo({
-          center: [selectedProperty.longitude, selectedProperty.latitude],
-          zoom: 15.3,
-          speed: 0.85,
-        })
+        if (shouldAdjustViewport) {
+          map.flyTo({
+            center: [selectedProperty.longitude, selectedProperty.latitude],
+            zoom: 15.3,
+            speed: 0.85,
+          })
+        }
       } else {
-        map.flyTo({
-          center: [selected.longitude, selected.latitude],
-          zoom: 13.3,
-          speed: 0.8,
-        })
+        if (shouldAdjustViewport) {
+          map.flyTo({
+            center: [selected.longitude, selected.latitude],
+            zoom: 13.3,
+            speed: 0.8,
+          })
+        }
       }
     } else if (results.length > 0) {
-      map.fitBounds(bounds, { padding: 70, duration: 600, maxZoom: 12.5 })
+      const resultIds = results.map((result) => result.id).join(',')
+      const viewportIntentKey = `overview:${resultIds}:${activeAnchorLabel ?? anchor.label}`
+      const shouldAdjustViewport =
+        !hasUserAdjustedViewport.current || lastViewportIntentKey.current !== viewportIntentKey
+
+      if (shouldAdjustViewport) {
+        isProgrammaticViewportChange.current = true
+        lastViewportIntentKey.current = viewportIntentKey
+        map.fitBounds(bounds, { padding: 70, duration: 600, maxZoom: 12.5 })
+      }
     } else {
+      isProgrammaticViewportChange.current = true
+      lastViewportIntentKey.current = `anchor:${anchor.latitude}:${anchor.longitude}`
       map.setCenter([anchor.longitude, anchor.latitude])
       map.setZoom(10.5)
     }
