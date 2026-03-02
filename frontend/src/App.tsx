@@ -809,6 +809,7 @@ function App() {
         lifestyle={lifestyle}
         onLifestyleChange={setLifestyle}
         onFindCommunities={showSidebar}
+        onResultsLogoClick={() => navigate('/')}
       />
 
       <Routes>

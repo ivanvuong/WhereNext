@@ -92,6 +92,10 @@
   color: var(--ink-main);
 }
 
+.brand--clickable {
+  cursor: pointer;
+}
+
 .brand__mark {
   width: 48px;
   height: 48px;
@@ -430,13 +434,21 @@ textarea::placeholder {
   padding: 10px 14px;
 }
 
+.app--survey .field-group:last-of-type textarea {
+  min-height: clamp(110px, 16vh, 150px);
+}
+
 .app--survey .chip {
   padding: 6px 13px;
 }
 
 .app--survey .survey__footer {
   margin-top: auto;
-  padding-top: 8px;
+  padding-top: 6px;
+  padding-bottom: 20px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
 .cta,

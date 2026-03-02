@@ -80,7 +80,7 @@ const SurveyForm = ({
       </div>
     </div>
 
-    <div className={`slider-grid ${!isResults ? 'slider-grid--split' : ''}`}>
+    <div className="slider-grid">
       {housingMode === 'rent' ? (
         <MetricSlider
           id="budget"

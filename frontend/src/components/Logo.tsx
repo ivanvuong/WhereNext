@@ -1,5 +1,22 @@
-const Logo = () => (
-  <div className="brand">
+const Logo = ({
+  clickable = false,
+  onClick,
+}: {
+  clickable?: boolean
+  onClick?: () => void
+}) => (
+  <div
+    className={`brand ${clickable ? 'brand--clickable' : ''}`}
+    role={clickable ? 'button' : undefined}
+    tabIndex={clickable ? 0 : undefined}
+    onClick={clickable ? onClick : undefined}
+    onKeyDown={clickable ? (event) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault()
+        onClick?.()
+      }
+    } : undefined}
+  >
     <div className="brand__mark" aria-hidden>
       <svg
         className="brand__icon"

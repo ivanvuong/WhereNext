@@ -22,6 +22,7 @@ const SurveyPanel = ({
   lifestyle,
   onLifestyleChange,
   onFindCommunities,
+  onResultsLogoClick,
 }: {
   isResults: boolean
   housingMode: HousingMode
@@ -41,11 +42,12 @@ const SurveyPanel = ({
   lifestyle: string
   onLifestyleChange: (value: string) => void
   onFindCommunities: () => void
+  onResultsLogoClick: () => void
 }) => (
   <section className={`survey ${isResults ? 'survey--sidebar' : ''}`}>
     <div className="survey__inner">
       <div className="survey__header">
-        <Logo />
+        <Logo clickable={isResults} onClick={isResults ? onResultsLogoClick : undefined} />
         {!isResults ? (
           <>
             <h1>Find the best place to live based on your life</h1>
