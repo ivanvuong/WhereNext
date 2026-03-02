@@ -4,11 +4,10 @@ This template provides a minimal setup to get React working in Vite with HMR and
 
 ## Mapbox setup (dev)
 
-The map reads a Mapbox access token from `VITE_MAPBOX_TOKEN` or from the in-app token prompt.
+The app reads the Mapbox token from `VITE_MAPBOX_TOKEN` in your local env.
 
-Options:
-1. Create `/Users/kirthanmurthy/Desktop/WhereNext/frontend/.env` from `.env.example` and set `VITE_MAPBOX_TOKEN`.
-2. Paste a token directly in the UI when the map prompts you. It is saved to `localStorage`.
+1. Copy `frontend/.env.example` to `frontend/.env`.
+2. Set `VITE_MAPBOX_TOKEN` to your own Mapbox public token.
 
 For team testing, avoid locking the token to a single localhost URL. Either leave URL restrictions empty for dev, or allow the host/port your teammates use.
 

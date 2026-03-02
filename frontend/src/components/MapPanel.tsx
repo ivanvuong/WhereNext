@@ -5,10 +5,6 @@ import { formatPropertyPrice } from '../utils/properties'
 import { formatCurrency } from '../utils/format'
 
 const MapPanel = ({
-  mapboxToken,
-  mapboxTokenInput,
-  onMapboxTokenInput,
-  onSaveMapboxToken,
   mapContainerRef,
   selected,
   selectedOverview,
@@ -17,10 +13,6 @@ const MapPanel = ({
   selectedProperty,
   onClosePropertyDetail,
 }: {
-  mapboxToken: string
-  mapboxTokenInput: string
-  onMapboxTokenInput: (value: string) => void
-  onSaveMapboxToken: () => void
   mapContainerRef: RefObject<HTMLDivElement | null>
   selected: RankedCommunity | null
   selectedOverview: string
@@ -31,26 +23,7 @@ const MapPanel = ({
 }) => (
   <article className="map-panel">
     <div className="map-canvas" role="img" aria-label="Community recommendation map">
-      {!mapboxToken ? (
-        <div className="mapbox-missing">
-          <h3>Mapbox token missing</h3>
-          <p>Set `VITE_MAPBOX_TOKEN` in your local `.env` or paste a token below.</p>
-          <div className="mapbox-token">
-            <input
-              type="password"
-              value={mapboxTokenInput}
-              onChange={(event) => onMapboxTokenInput(event.target.value)}
-              placeholder="pk.eyJ1Ijo..."
-              aria-label="Mapbox access token"
-            />
-            <button type="button" onClick={onSaveMapboxToken}>
-              Save Token
-            </button>
-          </div>
-        </div>
-      ) : (
-        <div className="mapbox-container" ref={mapContainerRef} />
-      )}
+      <div className="mapbox-container" ref={mapContainerRef} />
       {selected ? (
         <aside className="map-neighborhood-overlay" aria-live="polite">
           <div className="map-neighborhood-overlay__head">

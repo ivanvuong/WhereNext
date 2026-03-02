@@ -158,13 +158,6 @@ function App() {
   const [properties, setProperties] = useState<PropertyListing[]>([])
   const [isPropertiesLoading, setIsPropertiesLoading] = useState(false)
   const [resolvedAnchor, setResolvedAnchor] = useState<ResolvedAnchor | null>(null)
-  const [runtimeMapboxToken, setRuntimeMapboxToken] = useState<string>(() => {
-    if (typeof window === 'undefined') {
-      return ''
-    }
-    return window.localStorage.getItem('wherenext:mapboxToken') ?? ''
-  })
-  const [mapboxTokenInput, setMapboxTokenInput] = useState('')
   const updateTimer = useRef<number | null>(null)
   const aiCopyTimer = useRef<number | null>(null)
   const aiCopyCache = useRef<Map<string, NeighborhoodCopy>>(new Map())
@@ -182,8 +175,7 @@ function App() {
   )
 
   const anchor = useMemo(() => resolvedAnchor ?? resolveAnchor(anchorInput), [anchorInput, resolvedAnchor])
-  const envMapboxToken = (import.meta.env.VITE_MAPBOX_TOKEN as string | undefined)?.trim()
-  const mapboxToken = runtimeMapboxToken.trim() || envMapboxToken || ''
+  const mapboxToken = ((import.meta.env.VITE_MAPBOX_TOKEN as string | undefined) ?? '').trim()
   const affordabilityInput = housingMode === 'buy' ? maxHomePrice : budget
   const salaryForAnalysis = housingMode === 'buy' ? Math.round(maxHomePrice / 12) : DEFAULT_RENT_SALARY
   const selectedCopy = selected ? aiNeighborhoodCopy[selected.id] ?? null : null
@@ -210,6 +202,9 @@ function App() {
     setHasSearched(true)
     setIsLoading(true)
     setNotice(null)
+    if (!mapboxToken) {
+      setNotice('Map preview disabled until VITE_MAPBOX_TOKEN is set in frontend/.env.')
+    }
 
     try {
       let anchorOverride: ResolvedAnchor | null = null
@@ -251,7 +246,7 @@ function App() {
 
       if (anchorPayload.region === 'custom') {
         if (!mapboxToken) {
-          setNotice('Add a Mapbox token to search cities outside the built-in metro sets.')
+          setNotice('Set VITE_MAPBOX_TOKEN in frontend/.env to search cities outside the built-in metro sets.')
           setResults([])
           setSelectedId(null)
           return
@@ -335,16 +330,6 @@ function App() {
 
   const handleClosePropertyDetail = () => {
     setSelectedPropertyId(null)
-  }
-
-  const handleSaveMapboxToken = () => {
-    const cleaned = mapboxTokenInput.trim()
-    if (!cleaned) {
-      return
-    }
-    window.localStorage.setItem('wherenext:mapboxToken', cleaned)
-    setRuntimeMapboxToken(cleaned)
-    setMapboxTokenInput('')
   }
 
   const getCommunityReason = (community: RankedCommunity) =>
@@ -857,10 +842,6 @@ function App() {
               hasSearched={hasSearched}
               isLoading={isLoading}
               onUpdateResults={updateResults}
-              mapboxToken={mapboxToken}
-              mapboxTokenInput={mapboxTokenInput}
-              onMapboxTokenInput={setMapboxTokenInput}
-              onSaveMapboxToken={handleSaveMapboxToken}
               mapContainerRef={mapContainerRef}
               selected={selected}
               selectedOverview={selectedCopy?.overview ?? selectedFallbackCopy?.overview ?? ''}

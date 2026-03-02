@@ -12,10 +12,6 @@ const ResultsView = ({
   hasSearched,
   isLoading,
   onUpdateResults,
-  mapboxToken,
-  mapboxTokenInput,
-  onMapboxTokenInput,
-  onSaveMapboxToken,
   mapContainerRef,
   selected,
   selectedOverview,
@@ -40,10 +36,6 @@ const ResultsView = ({
   hasSearched: boolean
   isLoading: boolean
   onUpdateResults: () => void
-  mapboxToken: string
-  mapboxTokenInput: string
-  onMapboxTokenInput: (value: string) => void
-  onSaveMapboxToken: () => void
   mapContainerRef: RefObject<HTMLDivElement | null>
   selected: RankedCommunity | null
   selectedOverview: string
@@ -71,10 +63,6 @@ const ResultsView = ({
     ) : (
       <div className="workspace-results">
         <MapPanel
-          mapboxToken={mapboxToken}
-          mapboxTokenInput={mapboxTokenInput}
-          onMapboxTokenInput={onMapboxTokenInput}
-          onSaveMapboxToken={onSaveMapboxToken}
           mapContainerRef={mapContainerRef}
           selected={selected}
           selectedOverview={selectedOverview}
