@@ -989,6 +989,9 @@ textarea::placeholder {
   padding: 12px;
   box-shadow: 0 12px 28px rgba(13, 26, 53, 0.22);
   z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .map-property-detail__header {
@@ -1021,6 +1024,48 @@ textarea::placeholder {
   margin: 4px 0 0;
   color: #5e6d8a;
   font-size: 0.9rem;
+}
+
+.map-property-detail__footer {
+  margin-top: 8px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.map-property-detail__summary {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.map-property-detail__cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: flex-end;
+  min-height: 36px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid #12264a;
+  background: #0d1932;
+  color: #ffffff;
+  white-space: nowrap;
+  text-decoration: none;
+  font-size: 0.84rem;
+  font-weight: 650;
+  box-shadow: 0 8px 18px rgba(13, 25, 50, 0.18);
+  transition: transform 180ms ease, box-shadow 180ms ease, background-color 180ms ease, border-color 180ms ease, color 180ms ease;
+}
+
+.map-property-detail__cta:hover {
+  border-color: #18345f;
+  background: #12264a;
+  color: #ffffff;
+  box-shadow: 0 10px 22px rgba(13, 25, 50, 0.22);
+  transform: translateY(-1px);
 }
 
 .anchor-pin {
