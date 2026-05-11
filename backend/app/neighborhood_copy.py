@@ -5,10 +5,14 @@ import os
 import re
 
 import httpx
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from .cache_repository import build_cache_key, get_cached_neighborhood_copy, set_cached_neighborhood_copy
 from .models import NeighborhoodCopyRequest, NeighborhoodCopyResponse
 
 MISTRAL_URL = "https://api.mistral.ai/v1/chat/completions"
+NEIGHBORHOOD_COPY_CACHE_TTL_SECONDS = int(os.getenv("CACHE_TTL_NEIGHBORHOOD_COPY_SECONDS", "86400"))
 
 
 def _truncate(value: str, limit: int) -> str:
@@ -68,10 +72,40 @@ def _extract_json_dict(content: str) -> dict | None:
     return parsed if isinstance(parsed, dict) else None
 
 
-async def generate_neighborhood_copy(request: NeighborhoodCopyRequest) -> NeighborhoodCopyResponse:
+async def generate_neighborhood_copy(
+    request: NeighborhoodCopyRequest,
+    db: AsyncSession | None = None,
+) -> NeighborhoodCopyResponse:
+    cache_payload = request.model_dump(mode="json")
+    cache_key = build_cache_key("neighborhood_copy", cache_payload)
+
+    if db is not None:
+        try:
+            cached = await get_cached_neighborhood_copy(
+                db,
+                neighborhood_community_id=request.neighborhood_id,
+                input_hash=cache_key,
+            )
+        except SQLAlchemyError:
+            cached = None
+        if cached is not None:
+            return cached
+
     api_key = os.getenv("MISTRAL_API_KEY", "").strip()
     if not api_key:
-        return _heuristic_copy(request)
+        response = _heuristic_copy(request)
+        if db is not None:
+            try:
+                await set_cached_neighborhood_copy(
+                    db,
+                    neighborhood_community_id=request.neighborhood_id,
+                    input_hash=cache_key,
+                    response=response,
+                    ttl_seconds=NEIGHBORHOOD_COPY_CACHE_TTL_SECONDS,
+                )
+            except SQLAlchemyError:
+                pass
+        return response
 
     payload = {
         "model": os.getenv("MISTRAL_NEIGHBORHOOD_MODEL", "mistral-small-latest").strip(),
@@ -94,13 +128,61 @@ async def generate_neighborhood_copy(request: NeighborhoodCopyRequest) -> Neighb
         content = data.get("choices", [{}])[0].get("message", {}).get("content", "") or ""
         parsed = _extract_json_dict(content)
         if not parsed:
-            return _heuristic_copy(request)
+            response = _heuristic_copy(request)
+            if db is not None:
+                try:
+                    await set_cached_neighborhood_copy(
+                        db,
+                        neighborhood_community_id=request.neighborhood_id,
+                        input_hash=cache_key,
+                        response=response,
+                        ttl_seconds=NEIGHBORHOOD_COPY_CACHE_TTL_SECONDS,
+                    )
+                except SQLAlchemyError:
+                    pass
+            return response
 
         overview = _truncate(str(parsed.get("overview") or ""), 140)
         good = _truncate(str(parsed.get("good") or ""), 120)
         tradeoff = _truncate(str(parsed.get("tradeoff") or ""), 120)
         if not overview or not good or not tradeoff:
-            return _heuristic_copy(request)
-        return NeighborhoodCopyResponse(overview=overview, good=good, tradeoff=tradeoff)
+            response = _heuristic_copy(request)
+            if db is not None:
+                try:
+                    await set_cached_neighborhood_copy(
+                        db,
+                        neighborhood_community_id=request.neighborhood_id,
+                        input_hash=cache_key,
+                        response=response,
+                        ttl_seconds=NEIGHBORHOOD_COPY_CACHE_TTL_SECONDS,
+                    )
+                except SQLAlchemyError:
+                    pass
+            return response
+        response = NeighborhoodCopyResponse(overview=overview, good=good, tradeoff=tradeoff)
+        if db is not None:
+            try:
+                await set_cached_neighborhood_copy(
+                    db,
+                    neighborhood_community_id=request.neighborhood_id,
+                    input_hash=cache_key,
+                    response=response,
+                    ttl_seconds=NEIGHBORHOOD_COPY_CACHE_TTL_SECONDS,
+                )
+            except SQLAlchemyError:
+                pass
+        return response
     except Exception:
-        return _heuristic_copy(request)
+        response = _heuristic_copy(request)
+        if db is not None:
+            try:
+                await set_cached_neighborhood_copy(
+                    db,
+                    neighborhood_community_id=request.neighborhood_id,
+                    input_hash=cache_key,
+                    response=response,
+                    ttl_seconds=NEIGHBORHOOD_COPY_CACHE_TTL_SECONDS,
+                )
+            except SQLAlchemyError:
+                pass
+        return response

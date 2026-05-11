@@ -4,12 +4,16 @@ import os
 from typing import Any
 
 import httpx
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from .cache_repository import build_cache_key, get_api_cache, set_api_cache, upsert_listings
 from .models import PropertyListing, PropertySearchRequest
 from .services.geo import haversine_miles
 
 RAPIDAPI_HOST = "realty-in-us.p.rapidapi.com"
 REALTY_LIST_URL = f"https://{RAPIDAPI_HOST}/properties/v3/list"
+LISTINGS_CACHE_TTL_SECONDS = int(os.getenv("CACHE_TTL_LISTINGS_SECONDS", "1800"))
 
 
 def _derive_search_location(payload: PropertySearchRequest) -> str:
@@ -145,7 +149,10 @@ def _extract_listing(raw: dict[str, Any]) -> PropertyListing | None:
     )
 
 
-async def fetch_property_listings(payload: PropertySearchRequest) -> list[PropertyListing]:
+async def fetch_property_listings(
+    payload: PropertySearchRequest,
+    db: AsyncSession | None = None,
+) -> list[PropertyListing]:
     rapidapi_key = os.getenv("REALTY_RAPIDAPI_KEY", "").strip()
     if not rapidapi_key:
         raise RuntimeError("REALTY_RAPIDAPI_KEY is not configured")
@@ -170,17 +177,55 @@ async def fetch_property_listings(payload: PropertySearchRequest) -> list[Proper
         "list_price": {"max": payload.budget if payload.housing_mode == "rent" else _derive_price_ceiling(payload)},
         "beds": household_beds,
     }
-
-    headers = {
-        "content-type": "application/json",
-        "x-rapidapi-host": RAPIDAPI_HOST,
-        "x-rapidapi-key": rapidapi_key,
+    cache_request = {
+        "request": payload.model_dump(mode="json"),
+        "provider_payload": request_body,
     }
+    cache_key = build_cache_key("realty_listings", cache_request)
 
-    async with httpx.AsyncClient(timeout=15) as client:
-        response = await client.post(REALTY_LIST_URL, json=request_body, headers=headers)
-        response.raise_for_status()
-        data = response.json()
+    if db is not None:
+        try:
+            cached = await get_api_cache(db, provider="realty", cache_key=cache_key)
+        except SQLAlchemyError:
+            cached = None
+
+        if cached is not None:
+            data = cached
+        else:
+            headers = {
+                "content-type": "application/json",
+                "x-rapidapi-host": RAPIDAPI_HOST,
+                "x-rapidapi-key": rapidapi_key,
+            }
+
+            async with httpx.AsyncClient(timeout=15) as client:
+                response = await client.post(REALTY_LIST_URL, json=request_body, headers=headers)
+                response.raise_for_status()
+                data = response.json()
+
+            try:
+                await set_api_cache(
+                    db,
+                    provider="realty",
+                    cache_key=cache_key,
+                    request_json=cache_request,
+                    response_json=data,
+                    status_code=200,
+                    ttl_seconds=LISTINGS_CACHE_TTL_SECONDS,
+                )
+            except SQLAlchemyError:
+                pass
+    else:
+        headers = {
+            "content-type": "application/json",
+            "x-rapidapi-host": RAPIDAPI_HOST,
+            "x-rapidapi-key": rapidapi_key,
+        }
+
+        async with httpx.AsyncClient(timeout=15) as client:
+            response = await client.post(REALTY_LIST_URL, json=request_body, headers=headers)
+            response.raise_for_status()
+            data = response.json()
 
     raw_listings = (
         data.get("data", {}).get("home_search", {}).get("results")
@@ -199,5 +244,17 @@ async def fetch_property_listings(payload: PropertySearchRequest) -> list[Proper
                 listings.append(parsed)
         if len(listings) >= payload.limit:
             break
+
+    if db is not None and listings:
+        try:
+            await upsert_listings(
+                db,
+                neighborhood_name=payload.neighborhood,
+                city_name=payload.city,
+                listings=listings,
+                source="realty",
+            )
+        except SQLAlchemyError:
+            pass
 
     return listings

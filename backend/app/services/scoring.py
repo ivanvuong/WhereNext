@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 from ..data import COMMUNITIES
-from ..models import AnalyzeRequest, RankedCommunity
+from ..models import AnalyzeRequest, Community, RankedCommunity
 from .anchor import ResolvedAnchor, resolve_anchor
 from .geo import clamp, haversine_miles
 from .preferences import parse_preference_dimensions
 
 
-def score(request: AnalyzeRequest) -> tuple[ResolvedAnchor, list[RankedCommunity]]:
+def score(request: AnalyzeRequest, communities: list[Community] | None = None) -> tuple[ResolvedAnchor, list[RankedCommunity]]:
     anchor = resolve_anchor(
         request.anchor_input,
         anchor_latitude=request.anchor_latitude,
@@ -28,7 +28,7 @@ def score(request: AnalyzeRequest) -> tuple[ResolvedAnchor, list[RankedCommunity
 
     ranked: list[RankedCommunity] = []
 
-    for community in COMMUNITIES:
+    for community in communities or COMMUNITIES:
         if anchor.region != "custom" and community.region != anchor.region:
             continue
 

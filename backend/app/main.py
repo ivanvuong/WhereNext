@@ -3,20 +3,11 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .engine import score
-from .models import (
-    AnalyzeRequest,
-    AnalyzeResponse,
-    NeighborhoodCopyRequest,
-    NeighborhoodCopyResponse,
-    PropertySearchRequest,
-    PropertySearchResponse,
-)
-from .neighborhood_copy import generate_neighborhood_copy
-from .realty import fetch_property_listings
+from .routers import health_router, neighborhoods_router, rank_router, search_router
+
 
 def _load_local_env() -> None:
     env_path = Path(__file__).resolve().parents[1] / ".env"
@@ -28,15 +19,16 @@ def _load_local_env() -> None:
         if not line or line.startswith("#") or "=" not in line:
             continue
         key, value = line.split("=", 1)
-        key = key.strip()
-        value = value.strip().strip('"').strip("'")
-        os.environ.setdefault(key, value)
+        os.environ.setdefault(key.strip(), value.strip().strip('"').strip("'"))
 
 
-# Load backend/.env so API keys are available during local development.
 _load_local_env()
 
-app = FastAPI(title="WhereNext API", version="0.1.0")
+app = FastAPI(
+    title="WhereNext API",
+    version="0.2.0",
+    description="Structured backend for ranking communities, searching listings, and serving neighborhood data.",
+)
 
 raw_origins = os.getenv("CORS_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173")
 allowed_origins = [origin.strip() for origin in raw_origins.split(",") if origin.strip()]
@@ -49,44 +41,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
-@app.get('/health')
-def health() -> dict[str, str]:
-    return {"status": "ok"}
-
-
-@app.post('/analyze', response_model=AnalyzeResponse)
-def analyze(request: AnalyzeRequest) -> AnalyzeResponse:
-    anchor, ranked = score(request)
-    return AnalyzeResponse(
-        anchor_label=anchor.label,
-        anchor_region=anchor.region,
-        anchor_latitude=anchor.latitude,
-        anchor_longitude=anchor.longitude,
-        candidate_count=len(ranked),
-        communities=ranked,
-    )
-
-
-@app.post('/properties/search', response_model=PropertySearchResponse)
-async def search_properties(request: PropertySearchRequest) -> PropertySearchResponse:
-    try:
-        listings = await fetch_property_listings(request)
-    except RuntimeError as exc:
-        raise HTTPException(status_code=503, detail=str(exc)) from exc
-    except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"Property search failed: {exc}") from exc
-
-    return PropertySearchResponse(
-        neighborhood=request.neighborhood,
-        total=len(listings),
-        listings=listings,
-    )
-
-
-@app.post('/neighborhood/copy', response_model=NeighborhoodCopyResponse)
-async def neighborhood_copy(request: NeighborhoodCopyRequest) -> NeighborhoodCopyResponse:
-    try:
-        return await generate_neighborhood_copy(request)
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"Neighborhood copy failed: {exc}") from exc
+app.include_router(health_router)
+app.include_router(rank_router)
+app.include_router(search_router)
+app.include_router(neighborhoods_router)

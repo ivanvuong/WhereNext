@@ -67,6 +67,23 @@ class AnalyzeResponse(BaseModel):
     communities: list[RankedCommunity]
 
 
+class NeighborhoodRecord(BaseModel):
+    id: str
+    name: str
+    region: Region
+    city: str
+    state_code: str
+    latitude: float
+    longitude: float
+    avg_rent: int
+    lifestyle: LifestyleScore
+
+
+class NeighborhoodListResponse(BaseModel):
+    total: int
+    neighborhoods: list[NeighborhoodRecord]
+
+
 class PropertySearchRequest(BaseModel):
     neighborhood: str = Field(min_length=1)
     city: str | None = None

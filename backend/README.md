@@ -10,11 +10,50 @@ pip install -r requirements.txt
 uvicorn app.main:app --reload --port 8000
 ```
 
+## Postgres Setup
+
+Set `DATABASE_URL` in `backend/.env`:
+
+```bash
+DATABASE_URL=postgresql+asyncpg://YOUR_DB_USER@localhost:5432/wherenext
+CACHE_TTL_LISTINGS_SECONDS=1800
+CACHE_TTL_NEIGHBORHOOD_COPY_SECONDS=86400
+```
+
+Run the initial migration:
+
+```bash
+alembic -c alembic.ini upgrade head
+```
+
+Seed the cities and neighborhoods already defined in `app/data.py`:
+
+```bash
+python -m app.seed
+```
+
+Useful checks:
+
+```bash
+curl http://localhost:8000/db-health
+curl http://localhost:8000/db-summary
+```
+
 ## Endpoints
 
 - `GET /health` -> health check
-- `POST /analyze` -> deterministic community ranking
-- `POST /properties/search` -> homes for a selected neighborhood (Realty in US via RapidAPI)
+- `GET /db-health` -> confirms the app can query Postgres
+- `GET /db-summary` -> quick count of DB-backed communities
+- `POST /rank` -> deterministic community ranking
+- `POST /search` -> homes for a selected neighborhood (Realty in US via RapidAPI, cached in Postgres)
+- `GET /neighborhoods` -> DB-backed neighborhood catalog
+- `POST /neighborhoods/copy` -> AI/fallback neighborhood copy (cached in Postgres)
+
+Legacy aliases still work for the current frontend:
+
+- `POST /analyze`
+- `POST /properties/search`
+- `POST /neighborhood/copy`
 
 ## Environment
 
