@@ -25,6 +25,7 @@ const DEFAULT_PREFS = ''
 const DEFAULT_RENT_SALARY = 80_000
 const AI_COPY_DEBOUNCE_MS = 450
 const AI_COPY_CACHE_KEY = 'wherenext:aiNeighborhoodCopyCache:v1'
+const PROPERTY_CACHE_KEY = 'wherenext:propertySearchCache:v1'
 const NEIGHBORHOOD_RADIUS_SOURCE_ID = 'wherenext-neighborhood-radius-source'
 const NEIGHBORHOOD_RADIUS_FILL_LAYER_ID = 'wherenext-neighborhood-radius-fill'
 const NEIGHBORHOOD_RADIUS_LINE_LAYER_ID = 'wherenext-neighborhood-radius-line'
@@ -84,6 +85,54 @@ const serializeAiCopyKey = ({
       neighborhood.avgRent,
       neighborhood.distanceMiles,
     ],
+  })
+
+const serializePropertySearchKey = ({
+  neighborhood,
+  city,
+  stateCode,
+  anchorLatitude,
+  anchorLongitude,
+  neighborhoodLatitude,
+  neighborhoodLongitude,
+  budget,
+  salary,
+  commuteLimit,
+  radius,
+  household,
+  housingMode,
+  maxHomePrice,
+}: {
+  neighborhood: string
+  city?: string
+  stateCode?: string
+  anchorLatitude: number
+  anchorLongitude: number
+  neighborhoodLatitude: number
+  neighborhoodLongitude: number
+  budget: number
+  salary: number
+  commuteLimit: number
+  radius: number
+  household: HouseholdType
+  housingMode: HousingMode
+  maxHomePrice?: number
+}) =>
+  JSON.stringify({
+    neighborhood,
+    city: city ?? '',
+    stateCode: stateCode ?? '',
+    anchorLatitude,
+    anchorLongitude,
+    neighborhoodLatitude,
+    neighborhoodLongitude,
+    budget,
+    salary,
+    commuteLimit,
+    radius,
+    household,
+    housingMode,
+    maxHomePrice: maxHomePrice ?? null,
   })
 
 const buildCircleRing = (latitude: number, longitude: number, radiusMiles: number): [number, number][] => {
@@ -161,6 +210,10 @@ function App() {
   const updateTimer = useRef<number | null>(null)
   const aiCopyTimer = useRef<number | null>(null)
   const aiCopyCache = useRef<Map<string, NeighborhoodCopy>>(new Map())
+  const aiCopyInFlight = useRef<Set<string>>(new Set())
+  const propertyCache = useRef<Map<string, PropertyListing[]>>(new Map())
+  const propertyCacheLoaded = useRef(false)
+  const propertyRequestsInFlight = useRef<Map<string, Promise<PropertyListing[]>>>(new Map())
   const navigate = useNavigate()
   const location = useLocation()
   const isResults = location.pathname === '/results'
@@ -195,6 +248,23 @@ function App() {
       aiCopyCache.current = new Map(parsed)
     } catch {
       aiCopyCache.current = new Map()
+    }
+  }, [])
+
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(PROPERTY_CACHE_KEY)
+      if (!raw) {
+        propertyCache.current = new Map()
+        propertyCacheLoaded.current = true
+        return
+      }
+      const parsed = JSON.parse(raw) as Array<[string, PropertyListing[]]>
+      propertyCache.current = new Map(parsed)
+    } catch {
+      propertyCache.current = new Map()
+    } finally {
+      propertyCacheLoaded.current = true
     }
   }, [])
 
@@ -367,12 +437,17 @@ function App() {
           return
         }
 
+        if (aiCopyInFlight.current.has(cacheKey)) {
+          return
+        }
+
         // Keep neighborhood copy stable once we have it so the UI doesn't flip text on toggle changes.
         if (aiNeighborhoodCopy[neighborhood.id]) {
           return
         }
 
         try {
+          aiCopyInFlight.current.add(cacheKey)
           const copy = await fetchNeighborhoodCopy({
             neighborhoodId: neighborhood.id,
             neighborhood,
@@ -399,6 +474,8 @@ function App() {
         } catch {
           const inferred = inferNeighborhoodCopy(neighborhood, activeAnchorLabel)
           setAiNeighborhoodCopy((previous) => ({ ...previous, [neighborhood.id]: inferred }))
+        } finally {
+          aiCopyInFlight.current.delete(cacheKey)
         }
       })
     }, AI_COPY_DEBOUNCE_MS)
@@ -475,44 +552,90 @@ function App() {
 
     let cancelled = false
     const run = async () => {
+      const region = inferCityAndState()
+      const requestKey = serializePropertySearchKey({
+        neighborhood: selected.name,
+        city: region.city,
+        stateCode: region.state_code,
+        anchorLatitude: anchor.latitude,
+        anchorLongitude: anchor.longitude,
+        neighborhoodLatitude: selected.latitude,
+        neighborhoodLongitude: selected.longitude,
+        budget,
+        salary: salaryForAnalysis,
+        commuteLimit: commute,
+        radius,
+        household,
+        housingMode,
+        maxHomePrice: housingMode === 'buy' ? maxHomePrice : undefined,
+      })
+
+      const cachedProperties = propertyCache.current.get(requestKey)
+      if (cachedProperties) {
+        setProperties(cachedProperties)
+        setSelectedPropertyId((previous) => {
+          if (previous && cachedProperties.some((home) => home.id === previous)) {
+            return previous
+          }
+          return null
+        })
+        setPropertyNotice(cachedProperties.length === 0 ? 'No matching homes found for this neighborhood and filter mix.' : null)
+        setIsPropertiesLoading(false)
+        return
+      }
+
       setIsPropertiesLoading(true)
       setPropertyNotice(null)
       setProperties([])
       try {
-        const region = inferCityAndState()
-        const response = await searchProperties({
-          neighborhood: selected.name,
-          city: region.city,
-          state_code: region.state_code,
-          anchor_latitude: anchor.latitude,
-          anchor_longitude: anchor.longitude,
-          neighborhood_latitude: selected.latitude,
-          neighborhood_longitude: selected.longitude,
-          budget,
-          salary: salaryForAnalysis,
-          commute_limit: commute,
-          radius,
-          household,
-          housing_mode: housingMode,
-          max_home_price: housingMode === 'buy' ? maxHomePrice : undefined,
-          limit: 20,
-        })
+        let requestPromise = propertyRequestsInFlight.current.get(requestKey)
+        if (!requestPromise) {
+          requestPromise = searchProperties({
+            neighborhood: selected.name,
+            city: region.city,
+            state_code: region.state_code,
+            anchor_latitude: anchor.latitude,
+            anchor_longitude: anchor.longitude,
+            neighborhood_latitude: selected.latitude,
+            neighborhood_longitude: selected.longitude,
+            budget,
+            salary: salaryForAnalysis,
+            commute_limit: commute,
+            radius,
+            household,
+            housing_mode: housingMode,
+            max_home_price: housingMode === 'buy' ? maxHomePrice : undefined,
+            limit: 20,
+          }).then((response) =>
+            response.listings.map((raw) => {
+              const listing = toPropertyListing(raw)
+              if (listing.latitude === null || listing.longitude === null) {
+                return listing
+              }
+
+              const distanceMiles = haversineMiles(anchor.latitude, anchor.longitude, listing.latitude, listing.longitude)
+              return {
+                ...listing,
+                estimatedCommuteMinutes: estimateCommuteMinutesFromMiles(distanceMiles),
+              }
+            }),
+          )
+          propertyRequestsInFlight.current.set(requestKey, requestPromise)
+        }
+
+        const mapped = await requestPromise
         if (cancelled) {
           return
         }
 
-        const mapped = response.listings.map((raw) => {
-          const listing = toPropertyListing(raw)
-          if (listing.latitude === null || listing.longitude === null) {
-            return listing
+        propertyCache.current.set(requestKey, mapped)
+        if (propertyCacheLoaded.current) {
+          try {
+            window.localStorage.setItem(PROPERTY_CACHE_KEY, JSON.stringify(Array.from(propertyCache.current.entries())))
+          } catch {
+            // Ignore cache persistence errors.
           }
-
-          const distanceMiles = haversineMiles(anchor.latitude, anchor.longitude, listing.latitude, listing.longitude)
-          return {
-            ...listing,
-            estimatedCommuteMinutes: estimateCommuteMinutesFromMiles(distanceMiles),
-          }
-        })
+        }
 
         setProperties(mapped)
         setSelectedPropertyId((previous) => {
@@ -531,6 +654,7 @@ function App() {
           setPropertyNotice('Could not load homes right now. Check backend API key/config.')
         }
       } finally {
+        propertyRequestsInFlight.current.delete(requestKey)
         if (!cancelled) {
           setIsPropertiesLoading(false)
         }
